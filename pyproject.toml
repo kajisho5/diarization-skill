@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "diarization-skill"
+version = "0.1.0"
+description = "Who spoke when: anonymous speaker turns from a recording (pyannote.audio, local, offline) and speaker_id filled into a transcription-skill transcript."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [{name = "kajisho5"}]
+keywords = ["diarization", "speaker-diarization", "pyannote", "speaker-turns", "transcript", "offline", "agent-skill", "video-production"]
+dependencies = []
+
+[project.optional-dependencies]
+# The real engine. pyannote.audio 4.x itself needs Python >= 3.10; ASSIGN and the rest of the skill run on 3.9.
+pyannote = ["pyannote.audio>=4.0,<5"]
+
+[project.scripts]
+diarization = "diarization_skill.cli:main"
+
+[project.urls]
+Repository = "https://github.com/kajisho5/diarization-skill"
+
+[tool.setuptools.packages.find]
+where = ["src"]

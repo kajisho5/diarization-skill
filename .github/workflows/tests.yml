@@ -1,0 +1,55 @@
+name: tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  unit:
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-24.04, not -latest: Ubuntu 26.04 runners have no Python 3.9.
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+        python: ["3.9", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e .
+      - run: python -m unittest discover -s tests -v
+      - run: diarization contract --json
+
+  integration:
+    # ffmpeg from apt, plus read-only checkouts of transcription-skill (its `transcription check` validates
+    # ASSIGN's output) and AI-video-production-OS (registry conformance checks). No pyannote weights in CI:
+    # they are gated and never downloaded here (ADR-001), so only the real-engine tests may skip.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: kajisho5/transcription-skill
+          path: transcription-skill
+      - uses: actions/checkout@v4
+        with:
+          repository: kajisho5/AI-video-production-OS
+          path: AI-video-production-OS
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: pip install -e .
+      - name: Integration tests run (only real-engine tests may skip)
+        env:
+          TRANSCRIPTION_SKILL_DIR: ${{ github.workspace }}/transcription-skill
+          AI_VIDEO_PRODUCTION_OS_DIR: ${{ github.workspace }}/AI-video-production-OS
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee test.log
+          test "$(grep -c '\.\.\. skipped' test.log)" = "$(grep -c "skipped 'needs DIARIZATION_PIPELINE_DIR" test.log)"
+      - name: doctor (reports MISSING for pyannote and the pipeline; exit 3 expected)
+        run: diarization doctor --json || test $? -eq 3
