@@ -29,7 +29,7 @@ transcription-skill transcript -> `diarization assign` -> the same transcript wi
   - Done when: two-voice fixture, DER under threshold
 - [x] **4. ASSIGN op** — transcript + turns -> transcript with speaker_id (transcription schema) (0.1.0: `tests/` runs `transcription check` on the output)
   - Done when: round trip through `transcription check`
-- [ ] **5. SKILL.md, CI; (agent side) SkillSpec + adapter**
+- [ ] **5. SKILL.md, CI; (agent side) SkillSpec + adapter** (skill side done in 0.1.0, checked in [#5](https://github.com/kajisho5/diarization-skill/pull/5): `SKILL.md` documents every CLI command (`diarize`, `assign`, `check`, `score`, `contract`, `doctor`) with examples; `.github/workflows/tests.yml` (unit: Linux / macOS / Windows x Python 3.9 / 3.12 plus `diarization contract --json`; integration: ffmpeg + transcription-skill + the OS checkout, only the real-engine tests may skip, `doctor`); the OS checkout now names `kajisho5/Velisa`. The agent-side SkillSpec + adapter remain in video-production-agent)
   - Done when: tracked in video-production-agent
 
 ---
