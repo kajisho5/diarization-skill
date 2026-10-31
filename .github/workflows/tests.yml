@@ -25,7 +25,7 @@ jobs:
 
   integration:
     # ffmpeg from apt, plus read-only checkouts of transcription-skill (its `transcription check` validates
-    # ASSIGN's output) and AI-video-production-OS (registry conformance checks). No pyannote weights in CI:
+    # ASSIGN's output) and Velisa, the OS (registry conformance checks). No pyannote weights in CI:
     # they are gated and never downloaded here (ADR-001), so only the real-engine tests may skip.
     runs-on: ubuntu-24.04
     steps:
@@ -36,7 +36,7 @@ jobs:
           path: transcription-skill
       - uses: actions/checkout@v4
         with:
-          repository: kajisho5/AI-video-production-OS
+          repository: kajisho5/Velisa
           path: AI-video-production-OS
       - uses: actions/setup-python@v5
         with:
