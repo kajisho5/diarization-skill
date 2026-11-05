@@ -31,6 +31,15 @@ transcription-skill transcript -> `diarization assign` -> the same transcript wi
   - Done when: round trip through `transcription check`
 - [x] **5. SKILL.md, CI; (agent side) SkillSpec + adapter** (skill side done in 0.1.0, checked in [#5](https://github.com/kajisho5/diarization-skill/pull/5): `SKILL.md` documents every CLI command (`diarize`, `assign`, `check`, `score`, `contract`, `doctor`) with examples; `.github/workflows/tests.yml` (unit: Linux / macOS / Windows x Python 3.9 / 3.12 plus `diarization contract --json`; integration: ffmpeg + transcription-skill + the OS checkout, only the real-engine tests may skip, `doctor`); the OS checkout now names `kajisho5/Velisa`. Agent side: [video-production-agent#98](https://github.com/kajisho5/video-production-agent/pull/98) (its ADR-086) wires DIARIZE as the analysis kind `speaker_turns`, with a handoff when DIARIZE cannot run)
   - Done when: tracked in video-production-agent
+- [ ] **6. Measured on Japanese conference recordings** — DER on consented recordings of a panel, a Q&A with floor microphones and a two-person interview, with and without overlap, committed as a report. Field review 2026-11-05 (Velisa ROADMAP, third round)
+  - なぜ要るか：質疑応答や座談会で使えるかを、数字で判断できる
+  - Done when: a report with DER per condition from a machine with the weights
+- [ ] **7. Names for speakers** — anonymous speakers mapped to names from the caller's list (the programme: chair and speakers) using enrolled voice samples given with consent, or a lower third's OCR text (detection-skill) near the speaker's first turn; every mapping is a proposal with its evidence, never silent
+  - なぜ要るか：字幕の話者名や章立てに、実名を手で当てる手間を減らせる
+  - Done when: a fixture with two enrolled voices maps both, and an unenrolled voice stays anonymous
+- [ ] **8. Long recordings** — 2-8 h diarized in chunks with speakers linked across chunks by their embeddings, resumable, with the link confidence in the result
+  - なぜ要るか：終日のセッションでも、同じ座長が途中で別人扱いにならない
+  - Done when: a fixture split in three chunks keeps the same speaker id for the same voice across chunks
 
 ---
 Engine for every media operation: [ffmpeg-skill](https://github.com/kajisho5/ffmpeg-skill) (3.x, 42 tools, contract_version 2.0; treated as complete, proposals go to Velisa's ROADMAP). Orchestrator: [video-production-agent](https://github.com/kajisho5/video-production-agent).
