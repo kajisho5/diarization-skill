@@ -17,7 +17,7 @@ Early (0.1.0). DIARIZE (anonymous speaker turns, `diarization-skill/turns@1`) an
 
 ## Wiring
 
-transcription-skill transcript -> `diarization assign` -> the same transcript with `speaker_id` (passes `transcription check`). The agent still hard-codes speaker_id = null in about 5 places (step 5).
+transcription-skill transcript -> `diarization assign` -> the same transcript with `speaker_id` (passes `transcription check`). The agent measures DIARIZE as `speaker_turns` (step 5, video-production-agent#98) and, with `speakers.assign=true`, carries the speaker ids into subtitles and take picks through transcription-skill's merge (video-production-agent#111, its ADR-096).
 
 ## Steps
 
@@ -33,4 +33,4 @@ transcription-skill transcript -> `diarization assign` -> the same transcript wi
   - Done when: tracked in video-production-agent
 
 ---
-Engine for every media operation: [ffmpeg-skill](https://github.com/kajisho5/ffmpeg-skill) (42 tools, treated as complete). Orchestrator: [video-production-agent](https://github.com/kajisho5/video-production-agent).
+Engine for every media operation: [ffmpeg-skill](https://github.com/kajisho5/ffmpeg-skill) (3.x, 42 tools, contract_version 2.0; treated as complete, proposals go to Velisa's ROADMAP). Orchestrator: [video-production-agent](https://github.com/kajisho5/video-production-agent).
