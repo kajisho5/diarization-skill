@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 - 2026-11-06
+
+Long recordings (roadmap step 8, ADR-003).
+
+- `diarization diarize --chunk-seconds S`: diarizes in equal chunks, each extracted on its own (the fixed recipe with `-ss/-t`), with `--timeout` per chunk. Speakers are linked across chunks by cosine similarity of their embeddings to each speaker's running centroid, one to one per chunk, with `--link-threshold` (default 0.5). The result has `chunking` (chunks, and links with similarity and margin).
+- `--work-dir`: each finished chunk is saved with a key and reused on a rerun (resumable). A chunk file from another run is refused, never overwritten.
+
 ## 0.2.0 - 2026-11-06
 
 Names for speakers (roadmap step 7, ADR-002).

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "diarization-skill"
-version = "0.2.0"
+version = "0.3.0"
 description = "Who spoke when: anonymous speaker turns from a recording (pyannote.audio, local, offline) and speaker_id filled into a transcription-skill transcript."
 readme = "README.md"
 license = {text = "MIT"}

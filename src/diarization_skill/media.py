@@ -83,22 +83,26 @@ def probe(path: str) -> Dict[str, Any]:
             "has_video": video is not None}
 
 
-def extraction_argv(ffmpeg: str, src: str, dst: str, audio_stream: int = 0) -> List[str]:
-    """The fixed extraction argv, identical to transcription-skill's `extraction_argv`."""
+def extraction_argv(ffmpeg: str, src: str, dst: str, audio_stream: int = 0, start: Optional[float] = None,
+                    length: Optional[float] = None) -> List[str]:
+    """The fixed extraction argv, identical to transcription-skill's `extraction_argv`. A chunk of a long
+    recording (ADR-003) adds `-ss start -t length` before `-i`; the recipe is the same."""
     r = AUDIO_RECIPE
-    return [ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-i", src,
+    window = [] if start is None else ["-ss", f"{start:.3f}", "-t", f"{length:.3f}"]
+    return [ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-y", *window, "-i", src,
             "-map", f"0:a:{audio_stream}", "-vn", "-sn", "-dn",
             "-ac", str(r["channels"]), "-ar", str(r["sample_rate"]), "-c:a", r["codec"], "-f", r["container"], dst]
 
 
-def extract_audio(src: str, dst: str, audio_stream: int = 0, timeout: float = 600.0) -> Dict[str, Any]:
+def extract_audio(src: str, dst: str, audio_stream: int = 0, timeout: float = 600.0, start: Optional[float] = None,
+                  length: Optional[float] = None) -> Dict[str, Any]:
     ffmpeg = find_tool("ffmpeg")
     if not ffmpeg:
         raise DiarizationError("FFMPEG_NOT_FOUND", "ffmpeg not found on PATH (install FFmpeg)")
     if os.path.abspath(src) == os.path.abspath(dst):
         raise DiarizationError("INVALID_ARGUMENT", "audio extraction target equals the input")
     try:
-        proc = subprocess.run(extraction_argv(ffmpeg, src, dst, audio_stream), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        proc = subprocess.run(extraction_argv(ffmpeg, src, dst, audio_stream, start, length), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               text=True, timeout=timeout, env=child_env())
     except subprocess.TimeoutExpired:
         raise DiarizationError("ENGINE_TIMEOUT", f"audio extraction exceeded {timeout:g}s")

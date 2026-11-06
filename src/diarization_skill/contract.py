@@ -22,7 +22,7 @@ TOOLS = [
      "description": "Who spoke when: anonymous speaker turns (SPEAKER_nn, exclusive) of a recording, with overlapping speech "
                     "kept separately, engine/model/revision provenance and the model's CC-BY-4.0 attribution",
      "argv": ["diarize", "<media>", "[--num-speakers N | --min-speakers N --max-speakers N]", "[--audio-stream 0]",
-              "[--embeddings]", "[--pipeline-dir <dir>]", "[--device cpu]", "[--timeout 3600]", "[-o <turns.json>]", "[--overwrite]", "--json"]},
+              "[--embeddings]", "[--chunk-seconds 1800 [--link-threshold 0.5] [--work-dir <dir>]]", "[--pipeline-dir <dir>]", "[--device cpu]", "[--timeout 3600]", "[-o <turns.json>]", "[--overwrite]", "--json"]},
     {"tool_id": "diarization/assign", "role": "transformation", "writes_media": False, "mutates_input": False, "deterministic": True,
      "description": "Fill speaker_id in a transcription-skill transcript from speaker turns: longest overlap with an exclusive "
                     "turn per word (else per segment); no overlap or a tie stays null",
@@ -107,6 +107,9 @@ def contract() -> Dict[str, Any]:
         "naming": {"roster_schema": ROSTER_SCHEMA, "voiceprint_schema": VOICEPRINT_SCHEMA, "proposals_schema": PROPOSALS_SCHEMA,
                    "evidence": ["voice (cosine similarity to a consented voiceprint)", "lower_third (detection-skill OCR text)"],
                    "requires_confirmation": True, "speaker_embeddings": "only with diarize --embeddings"},
+        "long_recordings": {"option": "--chunk-seconds", "linking": "speaker embeddings, cosine to running centroids, one to one per chunk",
+                            "result_key": "chunking (chunks, links with similarity and margin)", "resumable": "--work-dir",
+                            "timeout": "per chunk"},
         "engines": {"default": DEFAULT_ENGINE, "registered": engine_ids(), "model": MODEL_ID, "license": MODEL_LICENSE,
                     "attribution": MODEL_ATTRIBUTION},
         "execution": {"canonical_invocation": ["diarization", "<command>", "...", "--json"], "network": False, "shell": False,

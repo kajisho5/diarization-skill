@@ -5,7 +5,7 @@ Written from a read-only audit of this repository on 2026-10-30. Each step below
 
 ## Where it stands
 
-Early (0.2.0). DIARIZE (anonymous speaker turns, `diarization-skill/turns@1`) and ASSIGN (speaker_id into a transcription-skill transcript) work, with contract and doctor. NAME proposes programme names for the anonymous speakers (consented voiceprints, lower thirds) for a person to confirm. The real engine's DER is not measured yet: that needs a machine with the gated weights.
+Early (0.3.0). DIARIZE (anonymous speaker turns, `diarization-skill/turns@1`) and ASSIGN (speaker_id into a transcription-skill transcript) work, with contract and doctor. NAME proposes programme names for the anonymous speakers (consented voiceprints, lower thirds) for a person to confirm. Long recordings run in chunks with speakers linked across them, resumable. The real engine's DER is not measured yet: that needs a machine with the gated weights.
 
 ## What this repository owns
 
@@ -37,7 +37,7 @@ transcription-skill transcript -> `diarization assign` -> the same transcript wi
 - [x] **7. Names for speakers** — anonymous speakers mapped to names from the caller's list (the programme: chair and speakers) using enrolled voice samples given with consent, or a lower third's OCR text (detection-skill) near the speaker's first turn; every mapping is a proposal with its evidence, never silent (Done (ADR-002): 0.2.0 `diarization enroll` (voiceprint with a required consent record; a sample with other voices is refused), `diarize --embeddings`, `diarization name` (`diarization-skill/name-proposals@1`: voice similarity with a margin and detection-skill lower thirds near the first turn, `conflict` / `anonymous` instead of a guess, every proposal `confirmed: false`). `tests/test_naming.py` runs the fixture through the real extraction with a test engine that has embeddings. **Pending:** calibrating `--min-similarity` / `--min-margin` on pyannote's embeddings, which needs consented recordings and the weights (with step 6))
   - なぜ要るか：字幕の話者名や章立てに、実名を手で当てる手間を減らせる
   - Done when: a fixture with two enrolled voices maps both, and an unenrolled voice stays anonymous
-- [ ] **8. Long recordings** — 2-8 h diarized in chunks with speakers linked across chunks by their embeddings, resumable, with the link confidence in the result
+- [x] **8. Long recordings** — 2-8 h diarized in chunks with speakers linked across chunks by their embeddings, resumable, with the link confidence in the result (Done (ADR-003): 0.3.0 `diarize --chunk-seconds` (equal chunks, each extracted on its own, timeout per chunk; one-to-one linking by cosine similarity to running centroids; `chunking.links` with similarity and margin, `min_link_similarity`) and `--work-dir` (finished chunks saved with a key and reused on a rerun). `tests/test_chunks.py` runs the fixture through the real per-chunk extraction with a test engine that has embeddings. **Pending:** a 2-8 h recording through pyannote and calibrating `--link-threshold`, which need the weights and real recordings (with step 6))
   - なぜ要るか：終日のセッションでも、同じ座長が途中で別人扱いにならない
   - Done when: a fixture split in three chunks keeps the same speaker id for the same voice across chunks
 

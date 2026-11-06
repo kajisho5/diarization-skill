@@ -50,7 +50,7 @@ The weights are free (CC-BY-4.0) but gated: Hugging Face asks you to accept the 
 
 | Command | What it does |
 |---|---|
-| `diarize <media> [--num-speakers N \| --min-speakers N --max-speakers N] [--audio-stream 0] [--embeddings] [--pipeline-dir DIR] [--device cpu] [--timeout 3600] [-o turns.json]` | Speaker turns ([`diarization-skill/turns@1`](docs/turns.md)) |
+| `diarize <media> [--num-speakers N \| --min-speakers N --max-speakers N] [--audio-stream 0] [--embeddings] [--chunk-seconds 1800 [--link-threshold 0.5] [--work-dir DIR]] [--pipeline-dir DIR] [--device cpu] [--timeout 3600] [-o turns.json]` | Speaker turns ([`diarization-skill/turns@1`](docs/turns.md)) |
 | `assign <transcript.json> <turns.json> -o out.json [--replace] [--allow-source-mismatch]` | Transcript with `speaker_id` filled and a `speaker_assignment` provenance block |
 | `enroll <sample> --name NAME --consent-by WHO --consent-date YYYY-MM-DD [--consent-note TEXT] -o voice.json` | Voiceprint of one consenting person ([ADR-002](docs/decisions.md), [docs/naming.md](docs/naming.md)) |
 | `name <turns.json> --roster roster.json [--lower-thirds text.json] [--min-similarity 0.6] [--min-margin 0.1] -o names.json` | Name proposals for the anonymous speakers, each with its evidence; never confirmed by the tool |
@@ -68,6 +68,7 @@ Every command prints one JSON document with `--json`. Exit codes: 0 ok, 2 invali
 - **Turns.** `turns` are pyannote's `exclusive_speaker_diarization` (one speaker at a time). The regular output, where people may overlap, is kept under `overlap` with the regions where two or more speak. Ids are renumbered `SPEAKER_00`, `SPEAKER_01`, ... by first appearance. They name nobody: naming a speaker is a human decision.
 - **Assign.** For every word (or a segment without words), the speaker whose exclusive turns overlap it longest. No overlap, or a tie, stays `null`, and nothing is guessed from neighbours. A segment with words takes the speaker with the largest total duration of its words. Everything else in the transcript is unchanged, and the result passes `transcription check`.
 
+- **Long recordings.** `--chunk-seconds 1800` diarizes a 2-8 h recording in equal chunks (each extracted on its own, `--timeout` per chunk) and links each chunk's speakers to the earlier ones by cosine similarity of their embeddings, so one voice keeps one id all day. Every link, with its similarity and margin, is in `chunking.links`. `--work-dir` saves each finished chunk and a rerun picks up where it stopped ([ADR-003](docs/decisions.md)).
 - **Names.** `name` proposes, for each anonymous speaker, a person from the roster you give (the programme). Evidence is the cosine similarity of the speaker's embedding (`diarize --embeddings`) to a consented voiceprint (`enroll`), and detection-skill OCR text naming the person near the speaker's first turn. A proposal needs a clear margin over every other person and speaker; disagreements are `conflict`, no evidence is `anonymous`, and every proposal is `confirmed: false` until a person confirms it ([ADR-002](docs/decisions.md)).
 
 ## Limits
@@ -76,6 +77,7 @@ Every command prints one JSON document with `--json`. Exit codes: 0 ok, 2 invali
 - CPU speed is not measured yet either. The model card gives no CPU real-time factor.
 - Overlapping speech gets one speaker in `turns`. Similar voices, short interjections, music and distant microphones cause errors.
 - The naming thresholds (`--min-similarity 0.6`, `--min-margin 0.1`) were set on a synthetic fixture and are not calibrated on pyannote's embeddings yet.
+- The chunk-linking threshold (`--link-threshold 0.5`) is not calibrated on pyannote's embeddings, and no 2-8 h recording has been run with the real engine yet.
 - One engine for now; a sherpa-onnx backend (no PyTorch) is a follow-up of ADR-001.
 
 ## Tests

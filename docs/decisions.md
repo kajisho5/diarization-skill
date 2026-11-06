@@ -83,3 +83,36 @@ Subtitles and chapters want real names, but DIARIZE only knows anonymous voices 
 
 - The defaults are not calibrated on the real engine yet: they were set on the synthetic fixture. Calibrating them needs consented recordings and a machine with the weights (with step 6).
 - The roadmap fixture runs through the real extraction with a test engine that has embeddings (`tests/test_naming.py`). Two enrolled voices are proposed by name, and an unenrolled third voice stays anonymous.
+
+## ADR-003 Long recordings: chunks linked by speaker embeddings, resumable
+
+Roadmap step 8. Decided 2026-11-06.
+
+### Context
+
+A full conference day is 2-8 h. One engine pass over that length is slow and holds the whole waveform in memory. A crash at hour 7 loses everything. The anonymous ids must not change halfway either: the chair at 09:00 has to be the same id as the chair at 16:00.
+
+### Decision
+
+- **Opt-in.** `diarize --chunk-seconds S` turns it on (for example 1800); without it nothing changes. The recording is split into `ceil(duration / S)` equal chunks.
+- **Extraction.** Each chunk is extracted on its own with the fixed recipe plus `-ss start -t length` before `-i`, so there is no single multi-hundred-MB WAV.
+- **Engine.** The engine runs on each chunk in the worker, and `--timeout` applies per chunk.
+- **Speaker counts.** For each chunk, `--num-speakers N` becomes `max_speakers N`, since a chunk may hold fewer people. `--min-speakers` is not passed down. `--max-speakers` is.
+- **Linking.** It uses the engine's speaker embeddings (pyannote 4.x `speaker_embeddings`, ADR-002). An engine without embeddings is refused for chunked runs.
+  - Chunk 0's speakers become the first global speakers.
+  - For each later chunk, every chunk speaker is compared with every global speaker's centroid: the speech-weighted sum of its chunk vectors, by cosine similarity.
+  - Pairs at or above `--link-threshold` (default 0.5) are taken greedily, highest first, one to one. Two speakers in one chunk are two people by the engine's own decision.
+  - A chunk speaker that is not linked, or has no vector, becomes a new id.
+- **Turns.** They are shifted to the media timeline, clipped to their chunk, and a turn cut by a boundary is joined again.
+- **Link confidence in the result.** `chunking.links` has one row per chunk speaker: `chunk`, `chunk_speaker`, `speaker` (the document's id), `linked`, `similarity` (to the chosen speaker, or the best one when not linked) and `margin` (over the next-best speaker). `chunking.min_link_similarity` is the weakest link. When linking leaves more ids than `--num-speakers`, a warning says so instead of merging anyone by force.
+- **Resumable.** With `--work-dir D`, each finished chunk's engine result is saved as `D/chunk_NNNN.json`, with a key over the source fingerprint, stream, engine, model, snapshot, speaker counts and chunk bounds.
+  - A rerun reuses every chunk with a matching key, and `chunks[].resumed` says which.
+  - A file with another key is refused, never overwritten.
+  - Linking is recomputed from the saved results, so `--link-threshold` can change between runs.
+  - The work dir holds voice vectors: it is the caller's to keep or delete.
+
+### Consequences
+
+- The roadmap fixture (`tests/test_chunks.py`) runs through the real per-chunk extraction with a test engine that has embeddings. It is split into three chunks, and each voice keeps one id across them, including a turn that crosses a boundary. The same fixture also shows the run resuming after a failure in chunk 1.
+- The default `--link-threshold` is not calibrated on pyannote's embeddings, and no 2-8 h recording has been run with the real engine. Both need the weights and real recordings (with step 6).
+- A boundary that falls inside a word can split it between two chunks. The joined turn keeps the times, but the engine saw two halves. Overlapping chunks are a possible follow-up if this shows up in measurements.
