@@ -44,7 +44,9 @@ def check_speaker_counts(num_speakers: Optional[int], min_speakers: Optional[int
 def diarize(media: str, *, num_speakers: Optional[int] = None, min_speakers: Optional[int] = None,
             max_speakers: Optional[int] = None, audio_stream: int = 0, timeout: float = DEFAULT_TIMEOUT,
             pipeline_dir: Optional[str] = None, device: str = "cpu", engine: Optional[DiarizationEngine] = None,
-            engine_id: str = DEFAULT_ENGINE) -> Dict[str, Any]:
+            engine_id: str = DEFAULT_ENGINE, embeddings: bool = False) -> Dict[str, Any]:
+    """`embeddings=True` keeps one speaker embedding per anonymous id under `speaker_embeddings` (ADR-002);
+    by default no voice vector is written."""
     t0 = time.time()
     check_speaker_counts(num_speakers, min_speakers, max_speakers)
     if device not in DEVICES:
@@ -93,7 +95,8 @@ def diarize(media: str, *, num_speakers: Optional[int] = None, min_speakers: Opt
                 "license": eng.license, "attribution": eng.attribution, "execution_mode": eng.execution_mode,
                 "device": device, **{k: v for k, v in result.extra.items() if k == "torch_version"}},
         parameters={"num_speakers": num_speakers, "min_speakers": min_speakers, "max_speakers": max_speakers},
-        audio_extraction=extraction, skill_version=__version__, processing_seconds=time.time() - t0, warnings=warnings)
+        audio_extraction=extraction, skill_version=__version__, processing_seconds=time.time() - t0, warnings=warnings,
+        embeddings=result.embeddings, keep_embeddings=embeddings)
     rep = validate_turns(doc, expected_fingerprint=fingerprint)
     if not rep.ok:
         raise DiarizationError("INVALID_RESULT", "engine output failed turns validation; nothing returned", rep.errors[:10])

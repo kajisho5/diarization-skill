@@ -52,3 +52,34 @@ The skill runs in the field (conference and event recordings, hybrid sessions), 
 - [nvidia/diar_sortformer_4spk-v1](https://huggingface.co/nvidia/diar_sortformer_4spk-v1)
 - [sherpa-onnx speaker diarization models](https://k2-fsa.github.io/sherpa/onnx/speaker-diarization/models.html)
 - [pyannote/wespeaker-voxceleb-resnet34-LM (weights licence follows the training data)](https://huggingface.co/pyannote/wespeaker-voxceleb-resnet34-LM)
+
+## ADR-002 Names for speakers: proposals from consented voiceprints and lower thirds, confirmed by a person
+
+Roadmap step 7. Decided 2026-11-06.
+
+### Context
+
+Subtitles and chapters want real names, but DIARIZE only knows anonymous voices (ADR-001: naming is a human decision). Two kinds of evidence are usually at hand for a conference recording: the programme (who chairs, who speaks), and the lower thirds the video shows when someone starts talking. Some speakers may also agree to give a short sample of their voice. The point is to cut the manual work of matching ids to names, without ever putting a name on a voice by guessing.
+
+### Decision
+
+- **Three documents, one op each.**
+  - `diarization enroll <sample>` writes a voiceprint (`diarization-skill/voiceprint@1`): the speaker embedding of the sample's one voice, made by the same engine, extraction and worker as DIARIZE.
+  - `diarization diarize --embeddings` adds `speaker_embeddings` to the turns: one vector per anonymous id. For pyannote this is the pipeline's own `speaker_embeddings` (pyannote.audio 4.x, rows in `speaker_diarization.labels()` order; zero rows left out).
+  - `diarization name <turns> --roster <roster>` writes name proposals (`diarization-skill/name-proposals@1`). It is pure computation, needs no engine, and never changes the turns or a transcript.
+- **Consent first.** `enroll` refuses to run without `--consent-by` and `--consent-date`, and the record goes into the voiceprint. `name` refuses a voiceprint without it. A sample holding more than one voice is refused (`ENROLLMENT_REJECTED`): the main voice needs 80% of the speech and 3 s. Nothing is averaged or guessed.
+- **Only the caller's roster.** A speaker can only be proposed as someone on the roster the caller gave. Nobody outside the list is identified, and there is no search against other voices.
+- **Voice evidence.** This is cosine similarity between a speaker's vector and a voiceprint. Speaker S is proposed as person P only when all three hold:
+  - the similarity is at least `--min-similarity` (default 0.6);
+  - P beats every other person for S by `--min-margin` (default 0.1);
+  - S beats every other speaker for P by the same margin.
+
+  Embeddings compare only within one engine model. A different model, a different known snapshot or a different dimension is refused (`EMBEDDING_MISMATCH`). An unknown snapshot gives a warning.
+- **Lower-third evidence.** This is detection-skill's OCR text (`detection text` detections, or its text `tracks`) read from the same file (the fingerprint must match, as for ASSIGN). It counts when the text falls between `--window-before` (default 5 s) before the speaker's first turn and `--window-after` (default 15 s) after it. It must contain a roster name or alias, compared after NFKC normalisation, case folding and dropping spaces and punctuation. So `山田　太郎` matches `山田太郎`, and `ＡＬＩＣＥ` matches `Alice`. There is no locale-specific rule. Other scripts or name orders go in `aliases`. Two names in one window give no proposal.
+- **Never silent.** Every speaker row carries the full evidence (all similarities, every matching lower third) and reasons. A person is proposed for at most one speaker. When voice and lower third disagree, or two speakers point at the same person, the speaker is `conflict` and gets no proposal. With no evidence it stays `anonymous`. Every proposal has `confirmed: false` and the document `requires_confirmation: true`. Confirming is a person's decision, which the agent records. This skill has no command that confirms.
+- **Voice vectors are personal data.** Turns carry no embeddings unless `--embeddings` is given. Voiceprints carry the person's name and consent and should be kept with the consent form. No path appears in any of the three documents.
+
+### Consequences
+
+- The defaults are not calibrated on the real engine yet: they were set on the synthetic fixture. Calibrating them needs consented recordings and a machine with the weights (with step 6).
+- The roadmap fixture runs through the real extraction with a test engine that has embeddings (`tests/test_naming.py`). Two enrolled voices are proposed by name, and an unenrolled third voice stays anonymous.

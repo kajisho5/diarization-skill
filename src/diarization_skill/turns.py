@@ -7,6 +7,8 @@ Rules kept by construction and checked here:
 - speaker ids are anonymous `SPEAKER_nn`, numbered by first appearance; they name nobody.
 - overlapping speech is kept separately under `overlap` (the engine's regular output and the regions
   where two or more speakers talk), never mixed into `turns`.
+- speaker embeddings (voice vectors) are written only when asked for (`diarize --embeddings`), under the
+  optional `speaker_embeddings`, keyed by the anonymous ids (ADR-002).
 - provenance names the engine, its version, the model and the snapshot revision, with the model licence
   and attribution; no path, command line or credential appears anywhere.
 """
@@ -101,7 +103,8 @@ def overlap_regions(turns: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def build_turns(*, exclusive: Sequence[Tuple[float, float, str]], regular: Optional[Sequence[Tuple[float, float, str]]],
                 duration: float, source: Dict[str, Any], engine: Dict[str, Any], parameters: Dict[str, Any],
                 audio_extraction: Dict[str, Any], skill_version: str, processing_seconds: float,
-                warnings: Optional[List[str]] = None) -> Dict[str, Any]:
+                warnings: Optional[List[str]] = None, embeddings: Optional[Dict[str, Sequence[float]]] = None,
+                keep_embeddings: bool = False) -> Dict[str, Any]:
     warnings = list(warnings or [])
     turns = _clean(exclusive, duration, "turn", warnings)
     reg = None if regular is None else _clean(regular, duration, "overlap turn", warnings)
@@ -123,6 +126,9 @@ def build_turns(*, exclusive: Sequence[Tuple[float, float, str]], regular: Optio
     speakers = sorted(mapping.values())
     if not turns:
         warnings.append("no speech turns found")
+    extra: Dict[str, Any] = {}
+    if keep_embeddings:
+        extra["speaker_embeddings"] = embeddings_block(embeddings, mapping, warnings)
     return {
         "schema": TURNS_SCHEMA,
         "source": source,
@@ -140,7 +146,35 @@ def build_turns(*, exclusive: Sequence[Tuple[float, float, str]], regular: Optio
         "created_at": utc_now(),
         "processing_seconds": round(processing_seconds, 3),
         "warnings": warnings,
+        **extra,
     }
+
+
+EMBEDDING_DIGITS = 6
+
+
+def embeddings_block(embeddings: Optional[Dict[str, Sequence[float]]], mapping: Dict[str, str],
+                     warnings: List[str]) -> Dict[str, Any]:
+    """Engine label -> vector, re-keyed by the anonymous ids. Labels without a kept turn are dropped."""
+    if embeddings is None:
+        warnings.append("the engine returned no speaker embeddings")
+        return {"available": False, "metric": "cosine", "dimension": None, "vectors": {}}
+    vectors: Dict[str, List[float]] = {}
+    for label, vec in embeddings.items():
+        if label not in mapping:
+            continue
+        v = [float(x) for x in vec]
+        if not v or not all(_num(x) for x in v) or not any(v):
+            raise DiarizationError("INVALID_RESULT", "engine returned an empty, zero or non-finite speaker embedding")
+        vectors[mapping[label]] = [round(x, EMBEDDING_DIGITS) for x in v]
+    dims = {len(v) for v in vectors.values()}
+    if len(dims) > 1:
+        raise DiarizationError("INVALID_RESULT", "engine returned speaker embeddings of different dimensions")
+    missing = sorted(set(mapping.values()) - set(vectors))
+    if missing:
+        warnings.append(f"no speaker embedding for {missing}")
+    return {"available": bool(vectors), "metric": "cosine", "dimension": dims.pop() if dims else None,
+            "vectors": dict(sorted(vectors.items()))}
 
 
 # ---- validation --------------------------------------------------------------------------------
@@ -319,8 +353,40 @@ def validate_turns(doc: Any, expected_fingerprint: Optional[str] = None) -> Vali
     if unused:
         rep.errors.append(f"speakers listed but never used: {unused}")
 
+    if "speaker_embeddings" in doc:
+        check_embeddings(doc["speaker_embeddings"], speakers, "speaker_embeddings", rep)
+
     _scan_leakage(doc, "", rep)
     return rep
+
+
+def check_embeddings(block: Any, speakers: List[str], where: str, rep: ValidationReport) -> None:
+    if not isinstance(block, dict) or any(k not in block for k in ("available", "metric", "dimension", "vectors")):
+        rep.errors.append(f"{where} must be an object with available, metric, dimension, vectors")
+        return
+    if block["metric"] != "cosine":
+        rep.errors.append(f"{where}.metric must be 'cosine'")
+    vectors = block["vectors"]
+    if not isinstance(vectors, dict):
+        rep.errors.append(f"{where}.vectors must be an object")
+        return
+    if block["available"] is False:
+        if vectors or block["dimension"] is not None:
+            rep.errors.append(f"{where} without available=true must have vectors={{}} and dimension=null")
+        return
+    if block["available"] is not True or not vectors:
+        rep.errors.append(f"{where}.available must be a boolean, true only with vectors")
+        return
+    dim = block["dimension"]
+    if not isinstance(dim, int) or isinstance(dim, bool) or dim < 1:
+        rep.errors.append(f"{where}.dimension must be an integer >= 1")
+        return
+    for spk, vec in vectors.items():
+        if spk not in speakers:
+            rep.errors.append(f"{where}.vectors.{spk}: not in speakers")
+        if (not isinstance(vec, list) or len(vec) != dim or not all(_num(x) for x in vec)
+                or not any(x != 0 for x in vec)):
+            rep.errors.append(f"{where}.vectors.{spk}: must be {dim} finite numbers, not all zero")
 
 
 def _scan_leakage(node: Any, path: str, rep: ValidationReport) -> None:

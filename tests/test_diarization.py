@@ -434,7 +434,8 @@ class ContractTests(unittest.TestCase):
         for k in ("skill_id", "id", "skill", "version", "contract_version", "provides", "dependencies", "not_provided"):
             self.assertIn(k, c)
         self.assertEqual(c["version"], __version__)
-        self.assertEqual({p["id"] for p in c["provides"]}, {"speech.diarize", "speech.assign_speakers"})
+        self.assertEqual({p["id"] for p in c["provides"]}, {"speech.diarize", "speech.assign_speakers", "speech.enroll_voice",
+                                                            "speech.propose_speaker_names"})
         tool_ids = {t["tool_id"] for t in TOOLS}
         for p in c["provides"]:
             self.assertEqual(set(p), {"id", "lifecycle", "tool_id"})

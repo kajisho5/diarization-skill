@@ -5,7 +5,7 @@ Written from a read-only audit of this repository on 2026-10-30. Each step below
 
 ## Where it stands
 
-Early (0.1.0). DIARIZE (anonymous speaker turns, `diarization-skill/turns@1`) and ASSIGN (speaker_id into a transcription-skill transcript) work, with contract and doctor. The real engine's DER is not measured yet: that needs a machine with the gated weights.
+Early (0.2.0). DIARIZE (anonymous speaker turns, `diarization-skill/turns@1`) and ASSIGN (speaker_id into a transcription-skill transcript) work, with contract and doctor. NAME proposes programme names for the anonymous speakers (consented voiceprints, lower thirds) for a person to confirm. The real engine's DER is not measured yet: that needs a machine with the gated weights.
 
 ## What this repository owns
 
@@ -13,7 +13,7 @@ Early (0.1.0). DIARIZE (anonymous speaker turns, `diarization-skill/turns@1`) an
 
 | Owned job | Status | Note |
 |---|---|---|
-| 話者識別 | partial | `diarize` + `assign` (0.1.0); real-engine DER pending |
+| 話者識別 | partial | `diarize` + `assign` (0.1.0); name proposals from a roster: `enroll` + `name` (0.2.0); real-engine DER and naming thresholds pending |
 
 ## Wiring
 
@@ -34,7 +34,7 @@ transcription-skill transcript -> `diarization assign` -> the same transcript wi
 - [ ] **6. Measured on Japanese conference recordings** — DER on consented recordings of a panel, a Q&A with floor microphones and a two-person interview, with and without overlap, committed as a report. Field review 2026-11-05 (Velisa ROADMAP, third round)
   - なぜ要るか：質疑応答や座談会で使えるかを、数字で判断できる
   - Done when: a report with DER per condition from a machine with the weights
-- [ ] **7. Names for speakers** — anonymous speakers mapped to names from the caller's list (the programme: chair and speakers) using enrolled voice samples given with consent, or a lower third's OCR text (detection-skill) near the speaker's first turn; every mapping is a proposal with its evidence, never silent
+- [x] **7. Names for speakers** — anonymous speakers mapped to names from the caller's list (the programme: chair and speakers) using enrolled voice samples given with consent, or a lower third's OCR text (detection-skill) near the speaker's first turn; every mapping is a proposal with its evidence, never silent (Done (ADR-002): 0.2.0 `diarization enroll` (voiceprint with a required consent record; a sample with other voices is refused), `diarize --embeddings`, `diarization name` (`diarization-skill/name-proposals@1`: voice similarity with a margin and detection-skill lower thirds near the first turn, `conflict` / `anonymous` instead of a guess, every proposal `confirmed: false`). `tests/test_naming.py` runs the fixture through the real extraction with a test engine that has embeddings. **Pending:** calibrating `--min-similarity` / `--min-margin` on pyannote's embeddings, which needs consented recordings and the weights (with step 6))
   - なぜ要るか：字幕の話者名や章立てに、実名を手で当てる手間を減らせる
   - Done when: a fixture with two enrolled voices maps both, and an unenrolled voice stays anonymous
 - [ ] **8. Long recordings** — 2-8 h diarized in chunks with speakers linked across chunks by their embeddings, resumable, with the link confidence in the result
