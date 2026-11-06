@@ -3,6 +3,9 @@
   diarization diarize talk.mp4 -o turns.json --json                 # anonymous speaker turns
   diarization diarize panel.wav --min-speakers 3 --max-speakers 6 -o turns.json
   diarization assign transcript.json turns.json -o transcript.speakers.json --json
+  diarization enroll alice.wav --name "Alice Smith" --consent-by "Alice Smith" --consent-date 2026-11-01 -o alice.voice.json
+  diarization diarize panel.mp4 --embeddings -o turns.json                # keep one voice vector per speaker
+  diarization name turns.json --roster roster.json [--lower-thirds text.json] -o names.json --json   # proposals only
   diarization check turns.json --json
   diarization score turns.json reference.json --json                 # DER against a reference
   diarization contract --json
@@ -24,8 +27,10 @@ from .contract import ERRORS, contract
 from .doctor import doctor
 from .errors import DiarizationError
 from .metrics import der
+from .naming import MIN_MARGIN, MIN_SIMILARITY, PROPOSALS_SCHEMA, WINDOW_AFTER, WINDOW_BEFORE, name_speakers, validate_proposals
 from .service import DEFAULT_TIMEOUT, DEVICES, diarize
 from .turns import validate_turns
+from .voices import MIN_SHARE, MIN_SPEECH, VOICEPRINT_SCHEMA, enroll, validate_voiceprint
 
 
 def _emit(doc: Dict[str, Any], as_json: bool, human: str = "") -> None:
@@ -67,7 +72,8 @@ def cmd_diarize(a: argparse.Namespace) -> int:
     if a.output:
         _check_output(a.output, [a.media], a.overwrite)
     doc = diarize(a.media, num_speakers=a.num_speakers, min_speakers=a.min_speakers, max_speakers=a.max_speakers,
-                  audio_stream=a.audio_stream, timeout=a.timeout, pipeline_dir=a.pipeline_dir, device=a.device)
+                  audio_stream=a.audio_stream, timeout=a.timeout, pipeline_dir=a.pipeline_dir, device=a.device,
+                  embeddings=a.embeddings)
     if a.output:
         _write_json(a.output, doc)
     lines = [f"{doc['speaker_count']} speaker(s), {len(doc['turns'])} turn(s) over {doc['source']['media_duration']:.1f}s"]
@@ -91,8 +97,37 @@ def cmd_assign(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_enroll(a: argparse.Namespace) -> int:
+    _check_output(a.output, [a.sample], a.overwrite)
+    doc = enroll(a.sample, name=a.name, person_id=a.person_id, role=a.role,
+                 consent={"given_by": a.consent_by, "date": a.consent_date, "note": a.consent_note},
+                 min_share=a.min_share, min_speech=a.min_speech, audio_stream=a.audio_stream, timeout=a.timeout,
+                 pipeline_dir=a.pipeline_dir, device=a.device)
+    _write_json(a.output, doc)
+    s = doc["sample"]
+    out = {"ok": True, "output": os.path.abspath(a.output), "person": doc["person"], "consent": doc["consent"], "sample": s,
+           "dimension": doc["embedding"]["dimension"], "warnings": doc["warnings"]}
+    _emit(out, a.json, f"voiceprint of {doc['person']['name']} from {s['dominant_seconds']:.1f}s of speech; wrote {a.output}")
+    return 0
+
+
+def cmd_name(a: argparse.Namespace) -> int:
+    inputs = [a.turns, a.roster] + ([a.lower_thirds] if a.lower_thirds else [])
+    _check_output(a.output, inputs, a.overwrite)
+    doc = name_speakers(a.turns, a.roster, a.lower_thirds, min_similarity=a.min_similarity, min_margin=a.min_margin,
+                        window_before=a.window_before, window_after=a.window_after, allow_source_mismatch=a.allow_source_mismatch)
+    _write_json(a.output, doc)
+    lines = [f"{r['speaker']}: " + (f"proposed {r['proposal']['name']} ({'+'.join(r['proposal']['basis'])})" if r["proposal"]
+                                     else f"{r['status']} ({'; '.join(r['reasons'])})") for r in doc["speakers"]]
+    lines.append("proposals only: confirm each with a person before using a name")
+    _emit(dict(doc, ok=True, output=os.path.abspath(a.output)), a.json, "\n".join(lines))
+    return 0
+
+
 def cmd_check(a: argparse.Namespace) -> int:
-    rep = validate_turns(load_json(a.turns, "INVALID_TURNS"))
+    doc = load_json(a.turns, "INVALID_TURNS")
+    validator = {VOICEPRINT_SCHEMA: validate_voiceprint, PROPOSALS_SCHEMA: validate_proposals}.get(doc.get("schema"), validate_turns)
+    rep = validator(doc)
     _emit(rep.to_dict(), a.json, "valid" if rep.ok else "INVALID\n" + "\n".join(f"  error: {e}" for e in rep.errors))
     return 0 if rep.ok else 2
 
@@ -149,10 +184,45 @@ def parser() -> argparse.ArgumentParser:
     d.add_argument("--pipeline-dir", help="local pipeline directory (default: $DIARIZATION_PIPELINE_DIR)")
     d.add_argument("--device", choices=DEVICES, default="cpu")
     d.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT, help=f"seconds for the engine (default {DEFAULT_TIMEOUT:g})")
+    d.add_argument("--embeddings", action="store_true",
+                   help="keep one speaker embedding per anonymous id (speaker_embeddings), for `name`")
     d.add_argument("-o", "--output", help="write the turns JSON here")
     d.add_argument("--overwrite", action="store_true")
     d.add_argument("--json", action="store_true", help="print one JSON document")
     d.set_defaults(func=cmd_diarize)
+
+    e = sub.add_parser("enroll", help="voiceprint of one consenting person from a sample of their voice alone")
+    e.add_argument("sample")
+    e.add_argument("--name", required=True, help="the person's name as it is in the roster")
+    e.add_argument("--consent-by", required=True, help="who gave consent to use this voice for speaker naming")
+    e.add_argument("--consent-date", required=True, help="when consent was given (YYYY-MM-DD)")
+    e.add_argument("--consent-note", help="scope or reference of the consent (event, form id)")
+    e.add_argument("--person-id")
+    e.add_argument("--role", help="free text, for example chair or speaker")
+    e.add_argument("--min-share", type=float, default=MIN_SHARE, help=f"share of speech the main voice needs (default {MIN_SHARE:g})")
+    e.add_argument("--min-speech", type=float, default=MIN_SPEECH, help=f"seconds of speech needed (default {MIN_SPEECH:g})")
+    e.add_argument("--audio-stream", type=int, default=0)
+    e.add_argument("--pipeline-dir")
+    e.add_argument("--device", choices=DEVICES, default="cpu")
+    e.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT)
+    e.add_argument("-o", "--output", required=True, help="write the voiceprint JSON here")
+    e.add_argument("--overwrite", action="store_true")
+    e.add_argument("--json", action="store_true")
+    e.set_defaults(func=cmd_enroll)
+
+    n = sub.add_parser("name", help="propose names for anonymous speakers from a roster (never confirms)")
+    n.add_argument("turns", help="turns document, made with --embeddings for voice evidence")
+    n.add_argument("--roster", required=True, help="diarization-skill/roster@1: the people expected, with optional voiceprints")
+    n.add_argument("--lower-thirds", help="detection-skill text detections or text tracks of the same recording")
+    n.add_argument("--min-similarity", type=float, default=MIN_SIMILARITY, help=f"default {MIN_SIMILARITY:g}")
+    n.add_argument("--min-margin", type=float, default=MIN_MARGIN, help=f"default {MIN_MARGIN:g}")
+    n.add_argument("--window-before", type=float, default=WINDOW_BEFORE, help=f"seconds before a first turn (default {WINDOW_BEFORE:g})")
+    n.add_argument("--window-after", type=float, default=WINDOW_AFTER, help=f"seconds after a first turn (default {WINDOW_AFTER:g})")
+    n.add_argument("--allow-source-mismatch", action="store_true")
+    n.add_argument("-o", "--output", required=True)
+    n.add_argument("--overwrite", action="store_true")
+    n.add_argument("--json", action="store_true")
+    n.set_defaults(func=cmd_name)
 
     s = sub.add_parser("assign", help="fill speaker_id in a transcription-skill transcript")
     s.add_argument("transcript")
@@ -165,7 +235,7 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_assign)
 
-    c = sub.add_parser("check", help="validate a turns document")
+    c = sub.add_parser("check", help="validate a turns, voiceprint or name-proposals document (by its schema)")
     c.add_argument("turns")
     c.add_argument("--json", action="store_true")
     c.set_defaults(func=cmd_check)

@@ -7,11 +7,12 @@ environment carries no token, so a run can never download weights. Audio is read
 """
 from __future__ import annotations
 
+import math
 import os
 import sys
 import wave
 from array import array
-from typing import Any, List
+from typing import Any, Dict, List, Optional
 
 from ..errors import DiarizationError
 from .base import DiarizationEngine, EngineRequest, EngineResult, Turn
@@ -59,7 +60,8 @@ class PyannoteEngine(DiarizationEngine):
             raise DiarizationError("ENGINE_UNAVAILABLE", "pipeline output has no exclusive_speaker_diarization; "
                                    "this needs pyannote.audio 4.x with speaker-diarization-community-1")
         return EngineResult(exclusive=_turns(exclusive), regular=_turns(regular), engine_version=engine_version, model=MODEL_ID,
-                            extra={"device": str(req.device or "cpu"), "torch_version": str(getattr(torch, "__version__", ""))})
+                            extra={"device": str(req.device or "cpu"), "torch_version": str(getattr(torch, "__version__", ""))},
+                            embeddings=_embeddings(regular, getattr(output, "speaker_embeddings", None)))
 
 
 def _major(v: str) -> Any:
@@ -80,6 +82,19 @@ def _read_wav(path: str, torch: Any) -> Any:
         frames.byteswap()
     data = torch.tensor(frames, dtype=torch.float32) / 32768.0
     return data.unsqueeze(0), rate
+
+
+def _embeddings(annotation: Any, centroids: Any) -> Optional[Dict[str, List[float]]]:
+    """pyannote 4.x: `speaker_embeddings` has one row per label, in `speaker_diarization.labels()` order.
+    It pads with zero rows when there are more labels than clusters; a zero row is no embedding, so it is left out."""
+    if centroids is None:
+        return None
+    out: Dict[str, List[float]] = {}
+    for label, row in zip(annotation.labels(), centroids):
+        vec = [float(x) for x in row]
+        if any(x != 0.0 for x in vec) and all(math.isfinite(x) for x in vec):
+            out[str(label)] = vec
+    return out
 
 
 def _turns(annotation: Any) -> List[Turn]:

@@ -92,3 +92,45 @@ def write_tone_wav(path: str, plan: Sequence[Tuple[float, float, Optional[float]
         w.setsampwidth(2)
         w.setframerate(rate)
         w.writeframes(bytes(frames))
+
+
+class VoiceEngine(DiarizationEngine):
+    """A stand-in diarizer with speaker embeddings, for naming and chunk-linking fixtures. A voiced 100 ms frame
+    belongs to the "voice" at its pitch (zero-crossing estimate, rounded to 50 Hz); a voice's embedding is a
+    smooth bump over 12 log-frequency bins, so the same pitch in two files gives the same vector and pitches an
+    octave or more apart are nearly orthogonal. Times are relative to the WAV it is given."""
+    id = "voice"
+    model = "test/voice"
+    license = "MIT"
+    attribution = "test fixture"
+    frame = 0.1
+
+    def __init__(self, embeddings: bool = True) -> None:
+        self.requests: List[EngineRequest] = []
+        self.with_embeddings = embeddings
+
+    @staticmethod
+    def embedding(freq: float) -> List[float]:
+        x = math.log2(freq)
+        return [round(math.exp(-((x - (math.log2(100) + i * 4 / 11)) / 0.3) ** 2), 6) for i in range(12)]
+
+    def diarize(self, req: EngineRequest) -> EngineResult:
+        self.requests.append(req)
+        with wave.open(req.audio_path, "rb") as w:
+            samples = array("h")
+            samples.frombytes(w.readframes(w.getnframes()))
+        n = int(16000 * self.frame)
+        turns: List[Turn] = []
+        for k, i in enumerate(range(0, len(samples) - n + 1, n)):
+            chunk = samples[i:i + n]
+            if math.sqrt(sum(x * x for x in chunk) / n) < 500:
+                continue
+            zc = sum(1 for a, b in zip(chunk, chunk[1:]) if (a < 0) != (b < 0))
+            lab = f"v{int(round(zc / self.frame / 2 / 50) * 50)}"
+            s, e = round(k * self.frame, 3), round((k + 1) * self.frame, 3)
+            if turns and turns[-1][2] == lab and abs(turns[-1][1] - s) < 1e-6:
+                turns[-1] = (turns[-1][0], e, lab)
+            else:
+                turns.append((s, e, lab))
+        emb = {lab: self.embedding(float(lab[1:])) for lab in {t[2] for t in turns}} if self.with_embeddings else None
+        return EngineResult(exclusive=turns, regular=list(turns), engine_version="1.0", model=self.model, embeddings=emb)

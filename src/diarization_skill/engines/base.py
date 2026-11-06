@@ -29,24 +29,30 @@ class EngineRequest:
 @dataclass
 class EngineResult:
     """`exclusive`: at most one speaker at any time (what ASSIGN uses). `regular`: the engine's normal
-    output, which may overlap; None when the engine has no such output."""
+    output, which may overlap; None when the engine has no such output. `embeddings`: one speaker
+    embedding (centroid) per engine label, or None when the engine has none; a label may be missing
+    when the engine has no usable vector for it (ADR-002)."""
     exclusive: List[Turn]
     regular: Optional[List[Turn]]
     engine_version: str
     model: str
     extra: Dict[str, Any] = field(default_factory=dict)
+    embeddings: Optional[Dict[str, List[float]]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {"exclusive": [list(t) for t in self.exclusive],
                 "regular": None if self.regular is None else [list(t) for t in self.regular],
-                "engine_version": self.engine_version, "model": self.model, "extra": dict(self.extra)}
+                "engine_version": self.engine_version, "model": self.model, "extra": dict(self.extra),
+                "embeddings": None if self.embeddings is None else {k: list(v) for k, v in self.embeddings.items()}}
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "EngineResult":
         def turns(v: Any) -> List[Turn]:
             return [(float(s), float(e), str(lab)) for s, e, lab in v]
         return cls(exclusive=turns(d["exclusive"]), regular=None if d.get("regular") is None else turns(d["regular"]),
-                   engine_version=str(d["engine_version"]), model=str(d["model"]), extra=dict(d.get("extra") or {}))
+                   engine_version=str(d["engine_version"]), model=str(d["model"]), extra=dict(d.get("extra") or {}),
+                   embeddings=None if d.get("embeddings") is None
+                   else {str(k): [float(x) for x in v] for k, v in d["embeddings"].items()})
 
 
 class DiarizationEngine:

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 - 2026-11-06
+
+Names for speakers (roadmap step 7, ADR-002).
+
+- `diarization enroll`: a voiceprint (`diarization-skill/voiceprint@1`) of one consenting person from a sample of their voice alone. Refused without `--consent-by` / `--consent-date`, and when the sample holds more than one voice (`ENROLLMENT_REJECTED`).
+- `diarization diarize --embeddings`: the turns carry one speaker embedding per anonymous id (`speaker_embeddings`; pyannote's own centroids). Without the flag no voice vector is written.
+- `diarization name`: name proposals (`diarization-skill/name-proposals@1`) from the caller's roster (`diarization-skill/roster@1`): voice similarity with a margin over other people and speakers, and detection-skill lower-third OCR text near a speaker's first turn. Conflicts and missing evidence leave the id anonymous; every proposal is unconfirmed.
+- `diarization check` validates turns, voiceprints and name proposals by their `schema`. New error codes: `INVALID_ROSTER`, `INVALID_VOICEPRINT`, `INVALID_DETECTIONS`, `EMBEDDING_MISMATCH`, `ENROLLMENT_REJECTED`.
+
 ## 0.1.0 - 2026-10-30
 
 First release (roadmap steps 2-4).

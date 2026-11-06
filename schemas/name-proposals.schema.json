@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kajisho5/diarization-skill/schemas/name-proposals.schema.json",
+  "title": "Name proposals",
+  "description": "diarization-skill/name-proposals@1, written by `diarization name`: for every anonymous speaker, a proposed person from the caller's roster or none, with the evidence. Nothing here is confirmed; a person confirms each proposal before a name is used. src/diarization_skill/naming.py (validate_proposals) is the executable form.",
+  "type": "object",
+  "required": ["schema", "requires_confirmation", "turns", "roster", "method", "speakers", "unmatched_people", "counts", "skill", "skill_version", "tool", "created_at", "warnings"],
+  "properties": {
+    "schema": {"const": "diarization-skill/name-proposals@1"},
+    "requires_confirmation": {"const": true},
+    "speakers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["speaker", "first_turn_start", "status", "proposal", "evidence", "reasons"],
+        "properties": {
+          "speaker": {"type": "string", "pattern": "^SPEAKER_\\d{2,}$"},
+          "status": {"enum": ["proposed", "anonymous", "conflict"]},
+          "proposal": {
+            "type": ["object", "null"],
+            "required": ["person_id", "name", "basis", "confirmed"],
+            "properties": {"basis": {"type": "array", "minItems": 1, "items": {"enum": ["voice", "lower_third"]}},
+                           "similarity": {"type": ["number", "null"]}, "confirmed": {"const": false}}
+          },
+          "evidence": {"type": "object", "required": ["voice", "lower_third"]},
+          "reasons": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "tool": {"const": "diarization/name"}
+  }
+}
