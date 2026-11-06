@@ -5,6 +5,7 @@
   diarization assign transcript.json turns.json -o transcript.speakers.json --json
   diarization enroll alice.wav --name "Alice Smith" --consent-by "Alice Smith" --consent-date 2026-11-01 -o alice.voice.json
   diarization diarize panel.mp4 --embeddings -o turns.json                # keep one voice vector per speaker
+  diarization diarize day1.mp4 --chunk-seconds 1800 --work-dir day1.chunks -o turns.json   # 2-8 h, resumable
   diarization name turns.json --roster roster.json [--lower-thirds text.json] -o names.json --json   # proposals only
   diarization check turns.json --json
   diarization score turns.json reference.json --json                 # DER against a reference
@@ -23,6 +24,7 @@ from typing import Any, Dict, List, Optional
 
 from . import __version__
 from .assign import assign, load_json
+from .chunks import LINK_THRESHOLD
 from .contract import ERRORS, contract
 from .doctor import doctor
 from .errors import DiarizationError
@@ -73,7 +75,7 @@ def cmd_diarize(a: argparse.Namespace) -> int:
         _check_output(a.output, [a.media], a.overwrite)
     doc = diarize(a.media, num_speakers=a.num_speakers, min_speakers=a.min_speakers, max_speakers=a.max_speakers,
                   audio_stream=a.audio_stream, timeout=a.timeout, pipeline_dir=a.pipeline_dir, device=a.device,
-                  embeddings=a.embeddings)
+                  embeddings=a.embeddings, chunk_seconds=a.chunk_seconds, link_threshold=a.link_threshold, work_dir=a.work_dir)
     if a.output:
         _write_json(a.output, doc)
     lines = [f"{doc['speaker_count']} speaker(s), {len(doc['turns'])} turn(s) over {doc['source']['media_duration']:.1f}s"]
@@ -186,6 +188,12 @@ def parser() -> argparse.ArgumentParser:
     d.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT, help=f"seconds for the engine (default {DEFAULT_TIMEOUT:g})")
     d.add_argument("--embeddings", action="store_true",
                    help="keep one speaker embedding per anonymous id (speaker_embeddings), for `name`")
+    lg = d.add_argument_group("long recordings (ADR-003)")
+    lg.add_argument("--chunk-seconds", type=float, help="diarize in chunks of about this many seconds (for example 1800) and "
+                    "link speakers across chunks by their embeddings; --timeout applies per chunk")
+    lg.add_argument("--link-threshold", type=float, default=LINK_THRESHOLD,
+                    help=f"cosine similarity needed to link a chunk's speaker to an earlier one (default {LINK_THRESHOLD:g})")
+    lg.add_argument("--work-dir", help="keep each finished chunk here and reuse it on a rerun (resumable)")
     d.add_argument("-o", "--output", help="write the turns JSON here")
     d.add_argument("--overwrite", action="store_true")
     d.add_argument("--json", action="store_true", help="print one JSON document")

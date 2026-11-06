@@ -104,7 +104,8 @@ def build_turns(*, exclusive: Sequence[Tuple[float, float, str]], regular: Optio
                 duration: float, source: Dict[str, Any], engine: Dict[str, Any], parameters: Dict[str, Any],
                 audio_extraction: Dict[str, Any], skill_version: str, processing_seconds: float,
                 warnings: Optional[List[str]] = None, embeddings: Optional[Dict[str, Sequence[float]]] = None,
-                keep_embeddings: bool = False) -> Dict[str, Any]:
+                keep_embeddings: bool = False, label_map: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """`label_map`, when given, receives engine label -> anonymous id."""
     warnings = list(warnings or [])
     turns = _clean(exclusive, duration, "turn", warnings)
     reg = None if regular is None else _clean(regular, duration, "overlap turn", warnings)
@@ -113,6 +114,8 @@ def build_turns(*, exclusive: Sequence[Tuple[float, float, str]], regular: Optio
                           None if reg is None else [(t["start"], t["end"], t["speaker"]) for t in reg])
     for t in turns + (reg or []):
         t["speaker"] = mapping[t["speaker"]]
+    if label_map is not None:
+        label_map.update(mapping)
     for prev, cur in zip(turns, turns[1:]):
         if cur["start"] < prev["end"] - OVERLAP_TOLERANCE:
             raise DiarizationError("INVALID_RESULT", "engine's exclusive turns overlap; refusing to return them as exclusive",
@@ -355,9 +358,42 @@ def validate_turns(doc: Any, expected_fingerprint: Optional[str] = None) -> Vali
 
     if "speaker_embeddings" in doc:
         check_embeddings(doc["speaker_embeddings"], speakers, "speaker_embeddings", rep)
+    if "chunking" in doc:
+        check_chunking(doc["chunking"], speakers, duration, rep)
 
     _scan_leakage(doc, "", rep)
     return rep
+
+
+def check_chunking(block: Any, speakers: List[str], duration: Optional[float], rep: ValidationReport) -> None:
+    """ADR-003: chunks are contiguous from 0 to the media end; every link names a known speaker and its similarity."""
+    if not isinstance(block, dict) or any(k not in block for k in ("chunk_seconds", "link_threshold", "chunks", "links")):
+        rep.errors.append("chunking must be an object with chunk_seconds, link_threshold, chunks, links")
+        return
+    chunks, links = block["chunks"], block["links"]
+    if not isinstance(chunks, list) or not chunks or not isinstance(links, list):
+        rep.errors.append("chunking.chunks must be a non-empty list and chunking.links a list")
+        return
+    prev_end = 0.0
+    for i, c in enumerate(chunks):
+        if not isinstance(c, dict) or c.get("index") != i or not _num(c.get("start")) or not _num(c.get("end")) \
+                or c["end"] <= c["start"] or abs(c["start"] - prev_end) > 0.002:
+            rep.errors.append(f"chunking.chunks[{i}]: needs index {i} and start == the previous end < end")
+            return
+        prev_end = c["end"]
+    if duration is not None and abs(prev_end - duration) > 0.002:
+        rep.errors.append("chunking.chunks must end at the media duration")
+    for i, ln in enumerate(links):
+        if not isinstance(ln, dict) or ln.get("speaker") not in speakers and ln.get("speaker") is not None:
+            rep.errors.append(f"chunking.links[{i}]: speaker must be one of speakers")
+            continue
+        if not isinstance(ln.get("chunk"), int) or not 0 <= ln["chunk"] < len(chunks):
+            rep.errors.append(f"chunking.links[{i}]: chunk must index chunking.chunks")
+        sim = ln.get("similarity")
+        if sim is not None and (not _num(sim) or not -1.0001 <= sim <= 1.0001):
+            rep.errors.append(f"chunking.links[{i}]: similarity must be null or in [-1, 1]")
+        if ln.get("linked") not in (True, False):
+            rep.errors.append(f"chunking.links[{i}]: linked must be a boolean")
 
 
 def check_embeddings(block: Any, speakers: List[str], where: str, rep: ValidationReport) -> None:

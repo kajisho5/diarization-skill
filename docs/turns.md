@@ -14,6 +14,8 @@ JSON Schema: `schemas/turns.schema.json`. The validator in `src/diarization_skil
 | `overlap` | `available`; `turns` (the engine's regular output, which may overlap); `regions` (`[{start, end, speakers}]` where two or more speak); `total_seconds` |
 | `audio_extraction` | the fixed recipe (mono, 16000 Hz, pcm_s16le WAV), the `-map 0:a:N` stream, `engine_seconds` |
 | `skill`, `skill_version`, `tool`, `created_at`, `processing_seconds`, `warnings` | provenance of the run |
+| `speaker_embeddings` | only with `--embeddings` (ADR-002): `available`, `metric` (`cosine`), `dimension`, `vectors` (`{SPEAKER_nn: [...]}`) |
+| `chunking` | only with `--chunk-seconds` (ADR-003): `chunk_seconds`, `link_threshold`, `method`, `chunk_parameters` (what each chunk was given), `resumable`, `chunks` (`[{index, start, end, speakers, resumed, engine_seconds, engine_version}]`, contiguous from 0 to the media end), `links` (`[{chunk, chunk_speaker, speaker, linked, similarity, margin}]`), `min_link_similarity`, `resumed_chunks` |
 
 Times are seconds on the media file's own timeline (no offset), rounded to milliseconds. An engine end up to 1 s past the media end is clamped with a warning; anything else wrong (overlapping "exclusive" turns, larger overruns, non-finite times) is rejected as `INVALID_RESULT`, never repaired. No path, command line or credential appears anywhere in the document.
 
