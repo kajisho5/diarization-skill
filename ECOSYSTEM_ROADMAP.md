@@ -1,6 +1,6 @@
 # Roadmap — diarization-skill
 
-Part of the [AI Video Production OS](https://github.com/kajisho5/AI-video-production-OS/blob/main/docs/ecosystem/ROADMAP.md) ecosystem: department **認識 (Recognition)**, status `scaffold`.
+Part of the [AI Video Production OS](https://github.com/kajisho5/AI-video-production-OS/blob/main/docs/ecosystem/ROADMAP.md) ecosystem: department **認識 (Recognition)**, status `active`.
 Written from a read-only audit of this repository on 2026-10-30. Each step below is meant to be one pull request; tick it off by linking the PR.
 
 ## Where it stands
@@ -14,6 +14,7 @@ Early (0.3.0). DIARIZE (anonymous speaker turns, `diarization-skill/turns@1`) an
 | Owned job | Status | Note |
 |---|---|---|
 | 話者識別 | partial | `diarize` + `assign` (0.1.0); name proposals from a roster: `enroll` + `name` (0.2.0); real-engine DER and naming thresholds pending |
+| 話者IDの付与規則 | done | ASSIGN's rule (turns → `speaker_id`) is defined here; transcription-skill's speaker merge is a copy and shares the fixtures (step 9; [Velisa ownership decisions 2026-11-12](https://github.com/kajisho5/Velisa/blob/main/docs/ecosystem/DECISION_LOG.md)) |
 
 ## Wiring
 
@@ -40,6 +41,8 @@ transcription-skill transcript -> `diarization assign` -> the same transcript wi
 - [x] **8. Long recordings** — 2-8 h diarized in chunks with speakers linked across chunks by their embeddings, resumable, with the link confidence in the result (Done (ADR-003): 0.3.0 `diarize --chunk-seconds` (equal chunks, each extracted on its own, timeout per chunk; one-to-one linking by cosine similarity to running centroids; `chunking.links` with similarity and margin, `min_link_similarity`) and `--work-dir` (finished chunks saved with a key and reused on a rerun). `tests/test_chunks.py` runs the fixture through the real per-chunk extraction with a test engine that has embeddings. **Pending:** a 2-8 h recording through pyannote and calibrating `--link-threshold`, which need the weights and real recordings (with step 6))
   - なぜ要るか：終日のセッションでも、同じ座長が途中で別人扱いにならない
   - Done when: a fixture split in three chunks keeps the same speaker id for the same voice across chunks
+- [ ] **9. Conformance fixtures for the speaker-id rule** — this repository owns the speaker-id assignment rule ([Velisa ownership decisions 2026-11-12](https://github.com/kajisho5/Velisa/blob/main/docs/ecosystem/DECISION_LOG.md)); transcription-skill's merge is a copy of it. Write the rule down as a short spec and publish fixtures transcription-skill can share: transcript + `diarization-skill/turns@1` → the expected `speaker_id` per word and segment, covering overlap, a word across a turn boundary, a gap with no turn and a tie, with a fixture version
+  - Done when: the fixtures and the rule are in the repository, ASSIGN passes them in CI, and transcription-skill runs the same fixtures (its step 17)
 
 ---
 Engine for every media operation: [ffmpeg-skill](https://github.com/kajisho5/ffmpeg-skill) (3.x, 42 tools, contract_version 2.0; treated as complete, proposals go to Velisa's ROADMAP). Orchestrator: [video-production-agent](https://github.com/kajisho5/video-production-agent).
