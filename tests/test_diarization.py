@@ -478,6 +478,10 @@ class ConformanceTests(unittest.TestCase):
         results.append(conf.check_no_unsafe_shell_out(str(ROOT / "src" / "diarization_skill")))
         results.append(conf.check_doctor_status(lambda: doctor()))
         for r in results:
+            if r.check == "dependency_version_ranges" and c["dependencies"] == []:
+                # no Skill dependency to check (ADR-005): the registry reports the check as inapplicable, never FAIL
+                self.assertEqual(r.status, "NOT_IMPLEMENTED", f"{r.check}: {r.detail}")
+                continue
             self.assertEqual(r.status, "PASS", f"{r.check}: {r.detail}")
 
 
