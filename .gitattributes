@@ -1,0 +1,2 @@
+# The speaker-id conformance fixtures are pinned by SHA-256 (ADR-004): keep their bytes identical on every OS.
+conformance/** -text

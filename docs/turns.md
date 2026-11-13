@@ -28,4 +28,4 @@ The input transcript, unchanged except for:
 - `warnings`: appended `speaker_id: ...` notes (segments left null, segments touching overlap, a source mismatch).
 - `speaker_assignment`: `tool`, `skill_version`, `method`, `rule`, `engine` (with `revision`, `license`, `attribution`), `parameters`, `speakers`, `segments_per_speaker`, `counts`, `source_match`, `overlap_segment_ids`.
 
-Rule: a word (or a segment without words) gets the speaker whose exclusive turns overlap it longest; zero overlap or a tie leaves null. A segment with words gets the speaker with the largest total duration of its assigned words; a tie or no assigned word leaves null. Nothing is inferred from neighbours.
+Rule: a word (or a segment without words) gets the speaker whose exclusive turns overlap it longest; zero overlap or a tie leaves null. A segment with words gets the speaker with the largest total duration of its assigned words; a tie or no assigned word leaves null. Nothing is inferred from neighbours. The full rule, and the conformance fixtures that pin it, are in [speaker_id_rule.md](speaker_id_rule.md).
