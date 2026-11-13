@@ -440,8 +440,9 @@ class ContractTests(unittest.TestCase):
         for p in c["provides"]:
             self.assertEqual(set(p), {"id", "lifecycle", "tool_id"})
             self.assertIn(p["tool_id"], tool_ids)
-        for d in c["dependencies"]:
-            self.assertIn("version_range", d)
+        self.assertEqual(c["dependencies"], [], "no Skill dependency; packages, weights and ffmpeg are doctor's (ADR-005)")
+        self.assertEqual(c["skill"], {"id": "diarization", "package": "diarization-skill", "version": __version__})
+        self.assertEqual(c["assign"]["input_schema"], "transcription-skill/transcript/0.1")
         self.assertFalse(c["execution"]["network"])
         self.assertEqual(c["engines"]["model"], MODEL_ID)
         self.assertIn("CC-BY-4.0", c["engines"]["license"])
@@ -477,6 +478,10 @@ class ConformanceTests(unittest.TestCase):
         results.append(conf.check_no_unsafe_shell_out(str(ROOT / "src" / "diarization_skill")))
         results.append(conf.check_doctor_status(lambda: doctor()))
         for r in results:
+            if r.check == "dependency_version_ranges" and c["dependencies"] == []:
+                # no Skill dependency to check (ADR-005): the registry reports the check as inapplicable, never FAIL
+                self.assertEqual(r.status, "NOT_IMPLEMENTED", f"{r.check}: {r.detail}")
+                continue
             self.assertEqual(r.status, "PASS", f"{r.check}: {r.detail}")
 
 
