@@ -116,3 +116,26 @@ A full conference day is 2-8 h. One engine pass over that length is slow and hol
 - The roadmap fixture (`tests/test_chunks.py`) runs through the real per-chunk extraction with a test engine that has embeddings. It is split into three chunks, and each voice keeps one id across them, including a turn that crosses a boundary. The same fixture also shows the run resuming after a failure in chunk 1.
 - The default `--link-threshold` is not calibrated on pyannote's embeddings, and no 2-8 h recording has been run with the real engine. Both need the weights and real recordings (with step 6).
 - A boundary that falls inside a word can split it between two chunks. The joined turn keeps the times, but the engine saw two halves. Overlapping chunks are a possible follow-up if this shows up in measurements.
+
+## ADR-004 The speaker-id rule as a spec with shared conformance fixtures
+
+Roadmap step 9. Decided 2026-11-13.
+
+### Context
+
+The Velisa ownership decisions of 2026-11-12 give the speaker-id assignment rule (turns -> `speaker_id`) to this repository. transcription-skill's speaker merge (its ADR-037) is a copy of ASSIGN's rule, so that the agent can merge speakers without installing this skill. Two copies drift unless both are checked against the same cases.
+
+### Decision
+
+- **The rule is written down** in [docs/speaker_id_rule.md](speaker_id_rule.md): overlap with exclusive turns only, summed per speaker; strictly largest wins, zero or a tie (within `1e-9` s) is `null`; words vote for their segment by duration, `null` words do not vote; no inference from neighbours; the overlap regions only produce the `overlap_segment_ids` report. It is what `assign.py` already did. No behaviour changes.
+- **Fixtures are data in the repository**, in `conformance/speaker_id/`: a manifest (`diarization-skill/speaker-id-conformance@1`) with `fixture_version` and the SHA-256 of each case, and one file per case (`diarization-skill/speaker-id-case@1`) with a full transcript, a full `diarization-skill/turns@1` document and the expected `speaker_id` per segment and word plus `overlap_segment_ids`. Six cases cover a word inside a turn, a word across a turn boundary, a gap with no turn, a word that only touches a turn edge, ties (word, segment, segment votes), overlapping speech, null words that do not vote, and overlap summed over several turns of one speaker.
+- **Exact by construction.** Every time is a multiple of 0.25 s, so the expected values do not depend on floating-point rounding, and the inputs are the full documents both validators accept.
+- **Versioned and pinned.** `tests/test_speaker_id_conformance.py` pins the manifest's SHA-256 per `fixture_version` and checks every case's hash. Changing a case without a new `fixture_version` fails here. `.gitattributes` keeps the fixture bytes identical on Windows checkouts.
+- **Consumers copy, then pin.** A consumer vendors the directory unchanged and pins the same `fixture_version` and manifest hash. Comparing its copy with a checkout of this repository in its CI makes a fixture change here fail there until it is taken. transcription-skill does this (its roadmap step 17).
+- **CI.** ASSIGN runs every case in the unit matrix. The integration job, which already checks out transcription-skill, also runs `transcription speakers` on every case, so the copy is checked from this side too.
+- **No contract change.** The fixtures are not a tool; `diarization contract` is unchanged.
+
+### Consequences
+
+- A change to the rule is a change to the fixtures: new `fixture_version`, new pin, and the consumer has to take it before its CI is green again.
+- The fixtures fix the `speaker_id` values and `overlap_segment_ids`, not the warnings text or the `speaker_assignment` provenance block, which differ by design (tool, skill).

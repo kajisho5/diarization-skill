@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 - 2026-11-13
+
+The speaker-id rule as a spec with shared conformance fixtures (roadmap step 9, ADR-004). No behaviour change.
+
+- `docs/speaker_id_rule.md`: the rule ASSIGN applies (turns -> `speaker_id`), owned by this repository.
+- `conformance/speaker_id/` (`fixture_version` 1): six cases, each a transcript, a turns document and the expected `speaker_id` per segment and word plus `overlap_segment_ids`. They cover overlap, a word across a turn boundary, a gap with no turn, a word that touches a turn edge, ties and null words that do not vote. A manifest lists the SHA-256 of each case.
+- `tests/test_speaker_id_conformance.py`: ASSIGN passes every case; the fixture hashes are pinned per `fixture_version`; with a transcription-skill checkout, `transcription speakers` passes every case too.
+
 ## 0.3.0 - 2026-11-06
 
 Long recordings (roadmap step 8, ADR-003).

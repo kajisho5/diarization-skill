@@ -5,7 +5,7 @@ Written from a read-only audit of this repository on 2026-10-30. Each step below
 
 ## Where it stands
 
-Early (0.3.0). DIARIZE (anonymous speaker turns, `diarization-skill/turns@1`) and ASSIGN (speaker_id into a transcription-skill transcript) work, with contract and doctor. NAME proposes programme names for the anonymous speakers (consented voiceprints, lower thirds) for a person to confirm. Long recordings run in chunks with speakers linked across them, resumable. The real engine's DER is not measured yet: that needs a machine with the gated weights.
+Early (0.3.1). DIARIZE (anonymous speaker turns, `diarization-skill/turns@1`) and ASSIGN (speaker_id into a transcription-skill transcript) work, with contract and doctor. NAME proposes programme names for the anonymous speakers (consented voiceprints, lower thirds) for a person to confirm. Long recordings run in chunks with speakers linked across them, resumable. The real engine's DER is not measured yet: that needs a machine with the gated weights.
 
 ## What this repository owns
 
