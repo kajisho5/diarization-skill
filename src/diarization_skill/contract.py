@@ -10,7 +10,6 @@ from .engines import DEFAULT_ENGINE, engine_ids
 from .engines.pyannote_engine import MODEL_ATTRIBUTION, MODEL_ID, MODEL_LICENSE
 from .media import AUDIO_RECIPE
 from .naming import PROPOSALS_SCHEMA, ROSTER_SCHEMA
-from .pipeline import ENV_PIPELINE_DIR
 from .turns import TURNS_SCHEMA
 from .voices import VOICEPRINT_SCHEMA
 
@@ -74,26 +73,19 @@ def contract() -> Dict[str, Any]:
     return {
         "skill_id": SKILL_ID,
         "id": SKILL_ID,
-        "skill": "diarization-skill",
+        "skill": {"id": SKILL_ID, "package": "diarization-skill", "version": __version__},
         "version": __version__,
         "contract_version": CONTRACT_VERSION,
         "provides": [{"id": "speech.diarize", "lifecycle": "EXPERIMENTAL", "tool_id": "diarization/diarize"},
                      {"id": "speech.assign_speakers", "lifecycle": "EXPERIMENTAL", "tool_id": "diarization/assign"},
                      {"id": "speech.enroll_voice", "lifecycle": "EXPERIMENTAL", "tool_id": "diarization/enroll"},
                      {"id": "speech.propose_speaker_names", "lifecycle": "EXPERIMENTAL", "tool_id": "diarization/name"}],
-        "dependencies": [
-            {"id": "pyannote.audio", "kind": "python-package", "required": True, "for": ["diarization/diarize"],
-             "version_range": ">=4.0.0 <5.0.0", "install": "pip install 'diarization-skill[pyannote]'"},
-            {"id": MODEL_ID, "kind": "model-weights", "required": True, "for": ["diarization/diarize"],
-             "version_range": "any snapshot (revision recorded in every result)", "license": MODEL_LICENSE,
-             "gated": True, "located_by": ["--pipeline-dir", f"${ENV_PIPELINE_DIR}"], "downloaded_at_run_time": False},
-            {"id": "ffmpeg", "kind": "binary", "required": True, "for": ["diarization/diarize"], "version_range": ">=4.0",
-             "located_by": ["PATH"]},
-            {"id": TRANSCRIPT_SCHEMA, "kind": "schema", "owner": "transcription-skill", "required": False,
-             "for": ["diarization/assign"], "version_range": ">=0.1 <0.2"},
-            {"id": "detection-skill/detections@1, detection-skill/tracks@1 (kind text)", "kind": "schema", "owner": "detection-skill",
-             "required": False, "for": ["diarization/name"], "version_range": "@1"},
-        ],
+        # Skill dependencies only (other Skills this one invokes), each with skill_id and version_range: the OS contract
+        # shape (Velisa registry/capability_contract.schema.json, ADR-018). This skill invokes none. pyannote.audio, the
+        # pipeline weights and ffmpeg are not Skills: `doctor` reports each with its version and install steps, and `engines`
+        # names the model and its licence; the transcript and detection documents it reads are under `assign` / `naming`
+        # (as transcription-skill does). docs/decisions.md ADR-005.
+        "dependencies": [],
         "not_provided": ["confirming a speaker's name (`name` only proposes, with evidence; a person confirms and the agent records it)",
                          "identifying anyone outside the caller's roster", "enrolling a voice without a consent record",
                          "transcription (transcription-skill)", "OCR of lower thirds (detection-skill `text`)",

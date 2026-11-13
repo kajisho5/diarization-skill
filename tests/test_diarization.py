@@ -440,8 +440,9 @@ class ContractTests(unittest.TestCase):
         for p in c["provides"]:
             self.assertEqual(set(p), {"id", "lifecycle", "tool_id"})
             self.assertIn(p["tool_id"], tool_ids)
-        for d in c["dependencies"]:
-            self.assertIn("version_range", d)
+        self.assertEqual(c["dependencies"], [], "no Skill dependency; packages, weights and ffmpeg are doctor's (ADR-005)")
+        self.assertEqual(c["skill"], {"id": "diarization", "package": "diarization-skill", "version": __version__})
+        self.assertEqual(c["assign"]["input_schema"], "transcription-skill/transcript/0.1")
         self.assertFalse(c["execution"]["network"])
         self.assertEqual(c["engines"]["model"], MODEL_ID)
         self.assertIn("CC-BY-4.0", c["engines"]["license"])

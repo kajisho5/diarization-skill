@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2 - 2026-11-13
+
+Contract shape only; no command, option, output document, tool, capability id or default changed. `contract_version` stays 1.0.
+
+- The contract follows the OS contract shape (Velisa `registry/capability_contract.schema.json`, ADR-005): `skill` is `{id, package, version}` instead of the package name as a string, and `dependencies` is empty, because this skill invokes no other Skill. pyannote.audio, the pipeline weights and ffmpeg leave `dependencies`; `doctor` reports each with its version and install steps, and `engines` keeps the model and its licence. The transcript and detection documents it reads stay described under `assign` and `naming`.
+
 ## 0.3.1 - 2026-11-13
 
 The speaker-id rule as a spec with shared conformance fixtures (roadmap step 9, ADR-004). No behaviour change.

@@ -139,3 +139,28 @@ The Velisa ownership decisions of 2026-11-12 give the speaker-id assignment rule
 
 - A change to the rule is a change to the fixtures: new `fixture_version`, new pin, and the consumer has to take it before its CI is green again.
 - The fixtures fix the `speaker_id` values and `overlap_segment_ids`, not the warnings text or the `speaker_assignment` provenance block, which differ by design (tool, skill).
+
+## ADR-005 The contract in the OS contract shape: `skill` as an object, Skill-only `dependencies`
+
+2026-11-13.
+
+### Context
+
+Velisa's contract-shape check (`si contract-check`, Velisa ADR-018) validates every pinned contract against the OS schema, `registry/capability_contract.schema.json`. This contract broke it in two places:
+
+- `skill` was the package name as a string; the schema wants an object (`{id, version}`).
+- `dependencies[]` named every entry under `id` and held a Python package, the pipeline weights, a binary and two document schemas; the schema wants Skill dependencies, each with `skill_id` and `version_range`.
+
+The schema stays as it is. The compliant contracts already show the convention: transcription-skill lists only Skills in `dependencies` (none) and leaves its provider packages and programs to `doctor` and `engines`; nle-bridge-skill and publish-skill give `skill` as `{id, package, version}`.
+
+### Decision
+
+- `skill` is `{"id": "diarization", "package": "diarization-skill", "version": <version>}`. `skill_id` and `id` stay.
+- `dependencies` is `[]`: this skill invokes no other Skill.
+- pyannote.audio, the pipeline weights and ffmpeg are not Skills. `doctor` already reports each with its version and install steps, and `engines` keeps the model id, licence and attribution. The transcript (`assign.input_schema`) and the detection-skill OCR evidence (`naming.evidence`) are documents this skill reads, not Skills it calls; they stay described there.
+
+### Consequences
+
+- `diarization contract --json` passes `si contract-check` against the OS schema with no baseline entry.
+- No command, option, output document, tool, capability id or error changed. `contract_version` stays 1.0: by the OS versioning rules (Velisa docs/VERSIONING.md section 3) a bump is for capability shape, and nothing a dependent calls changed. The skill version becomes 0.3.2.
+- An orchestrator that compares `dependencies` or `skill` with a pinned copy sees a change and has to re-pin. video-production-agent reads `skill_id`, not `skill` or `dependencies[].id`, and `dependencies` is not one of its fatal drift keys.
