@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.4 - 2026-11-19
+
+- ci: run contract-diff on every pull request (#17) (2dad1ef)
+
 ## v0.3.3 - 2026-11-19
 
 - ci: call Velisa's contract-diff on contract changes, one run per pull request (#15) (0bf8022)
