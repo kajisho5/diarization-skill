@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.3.2 - 2026-11-19
+
+- ci: release on push to main (version from PR labels, tag and GitHub Release) (#16) (f4d5ce0)
+- ci: commit the contract as contract/contract.json (#14) (0bb1f17)
+- Contract in the OS contract shape: skill object, Skill-only dependencies (0.3.2) (#13) (6fcb3bb)
+- Speaker-id rule as a spec with shared conformance fixtures (roadmap step 9) (#12) (35dbeac)
+- docs(roadmap): add the ownership decisions of 2026-11-12 (#11) (b5e124d)
+- Long recordings: chunks linked by speaker embeddings, resumable (roadmap step 8) (#10) (3254cc0)
+- Names for speakers: consented voiceprints and name proposals (roadmap step 7) (#9) (cfaf639)
+- docs(roadmap): field review steps 6-8 (2026-11-05) (#8) (beb9b02)
+- docs(roadmap): bring wiring up to date (2026-11-05 review) (#7) (2b41639)
+- Tick roadmap step 5: agent-side SkillSpec + adapter (video-production-agent #98) (#6) (65b574b)
+- Roadmap step 5: record the skill side (SKILL.md, CI) as done; CI checks out the OS as kajisho5/Velisa (#5) (36732a5)
+- feat: diarization-skill 0.1.0 - DIARIZE and ASSIGN (roadmap steps 2-4) (#4) (9ef07a4)
+- docs: ADR-001 engine choice (#3) (a06ff72)
+- docs: add app icon and wordmark (made with fresnel) (#2) (909aa6c)
+- Add ECOSYSTEM_ROADMAP.md: gaps, wiring and PR-sized steps from the 2026-10-30 ecosystem audit (#1) (9dbc87d)
+- Initial commit (ae51af0)
+
 ## 0.3.2 - 2026-11-13
 
 Contract shape only; no command, option, output document, tool, capability id or default changed. `contract_version` stays 1.0.
