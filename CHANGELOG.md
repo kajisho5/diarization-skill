@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.3 - 2026-11-19
+
+- ci: call Velisa's contract-diff on contract changes, one run per pull request (#15) (0bf8022)
+
 ## v0.3.2 - 2026-11-19
 
 - ci: release on push to main (version from PR labels, tag and GitHub Release) (#16) (f4d5ce0)
