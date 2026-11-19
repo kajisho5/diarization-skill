@@ -59,6 +59,8 @@ The weights are free (CC-BY-4.0) but gated: Hugging Face asks you to accept the 
 | `contract --json` | Machine-readable contract in the OS registry's shape |
 | `doctor --json` | Python, ffmpeg, pyannote.audio, torch, the pipeline directory; `MISSING` entries carry install steps |
 
+`contract/contract.json` is the contract committed as a file (`diarization contract --json` as one line with sorted keys, compact separators and a final newline), so the contract of any commit or tag is `git show <ref>:contract/contract.json`, with nothing installed or run. Regenerate it with `python contract/generate.py`; a unit test fails when it is stale.
+
 Every command prints one JSON document with `--json`. Exit codes: 0 ok, 2 invalid input or arguments, 3 engine, pipeline or ffmpeg missing, 4 the engine failed or timed out. Outputs never overwrite an existing file without `--overwrite`, and `-o` equal to an input is refused.
 
 ## How it works
