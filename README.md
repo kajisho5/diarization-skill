@@ -20,13 +20,15 @@ Who spoke when, for the [AI Video Production OS](https://github.com/kajisho5/AI-
 Local and offline: the engine is [pyannote.audio](https://github.com/pyannote/pyannote-audio) 4.x with the [`pyannote/speaker-diarization-community-1`](https://huggingface.co/pyannote/speaker-diarization-community-1) pipeline, loaded from a directory on disk ([ADR-001](docs/decisions.md)). Nothing is downloaded at run time.
 
 ```bash
-pip install -e '.[pyannote]'          # the skill + pyannote.audio 4.x (Python >= 3.10 for the engine)
+pip install -e '.[pyannote]'          # the skill + pyannote.audio 4.x (Python >= 3.10; >= 3.11 for 4.1+)
 diarization doctor                    # what is missing, and how to get it
 diarization diarize talk.mp4 --num-speakers 2 -o turns.json
 diarization assign transcript.json turns.json -o transcript.speakers.json
 ```
 
 `assign` and `check` need only the Python standard library (`pip install -e .`, Python >= 3.9).
+
+The engine's Python floor is pyannote.audio's own: 4.0.x needs Python >= 3.10, and 4.1 and later need Python >= 3.11. pip picks the newest 4.x that fits, so Python 3.10 gets 4.0.x and Python 3.11+ gets 4.1+. Both run the `community-1` pipeline. No pyannote.audio 4.x release installs on Python 3.9, and `diarization doctor` says so there.
 
 ## One-time setup: the pipeline weights
 

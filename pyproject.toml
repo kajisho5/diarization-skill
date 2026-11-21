@@ -14,7 +14,8 @@ keywords = ["diarization", "speaker-diarization", "pyannote", "speaker-turns", "
 dependencies = []
 
 [project.optional-dependencies]
-# The real engine. pyannote.audio 4.x itself needs Python >= 3.10; ASSIGN and the rest of the skill run on 3.9.
+# The real engine. pyannote.audio 4.0.x needs Python >= 3.10 and 4.1+ needs >= 3.11 (its own Requires-Python),
+# so pip installs 4.0.x on 3.10 and 4.1+ on 3.11 and later. ASSIGN and the rest of the skill run on 3.9.
 pyannote = ["pyannote.audio>=4.0,<5"]
 
 [project.scripts]

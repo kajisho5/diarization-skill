@@ -30,12 +30,29 @@ def _dist(name: str, module: str) -> Dict[str, Any]:
     return {"found": found, "version": version}
 
 
+# pyannote.audio's own Requires-Python: 4.0.x needs >= 3.10 and 4.1+ needs >= 3.11. pip picks the newest 4.x that
+# fits the interpreter, so 3.10 gets 4.0.x and 3.11+ gets 4.1+. No 4.x release installs on 3.9.
+PYANNOTE_PYTHON_NOTE = ("pyannote.audio 4.x needs Python >= 3.10 (4.0.x); 4.1 and later need Python >= 3.11, "
+                        "so pip installs 4.0.x on 3.10; assign/check run on 3.9")
+PYANNOTE_INSTALL = "pip install 'diarization-skill[pyannote]'  (pyannote.audio 4.x; Python >= 3.10, >= 3.11 for 4.1+)"
+
+
+def pyannote_install_hint(version_info: Any = None) -> str:
+    """The install step for pyannote.audio on this interpreter. On Python < 3.10 no pyannote.audio 4.x
+    release installs, so the step is a newer Python first, not a pip command that cannot resolve."""
+    vi = tuple(version_info if version_info is not None else sys.version_info)[:2]
+    if vi < (3, 10):
+        return ("Python >= 3.10 first (no pyannote.audio 4.x release installs on Python %d.%d; 4.1+ needs >= 3.11), "
+                "then %s" % (vi[0], vi[1], PYANNOTE_INSTALL))
+    return PYANNOTE_INSTALL
+
+
 def doctor(pipeline_dir: Optional[str] = None) -> Dict[str, Any]:
     checks: Dict[str, Any] = {}
     py_ok = sys.version_info >= (3, 9)
     checks["python"] = {"status": "OK" if py_ok else "MISSING", "version": platform.python_version(),
-                        "note": "pyannote.audio 4.x needs Python >= 3.10; assign/check run on 3.9",
-                        "install": None if py_ok else "Python >= 3.9 (>= 3.10 for the pyannote engine)"}
+                        "note": PYANNOTE_PYTHON_NOTE,
+                        "install": None if py_ok else "Python >= 3.9 (>= 3.10 for the pyannote engine, >= 3.11 for pyannote.audio 4.1+)"}
 
     ff, fp = find_tool("ffmpeg"), find_tool("ffprobe")
     checks["ffmpeg"] = {"status": "OK" if ff and fp else "MISSING", "ffmpeg": tool_version("ffmpeg") if ff else None,
@@ -52,8 +69,7 @@ def doctor(pipeline_dir: Optional[str] = None) -> Dict[str, Any]:
             major = None
     pa_status = "MISSING" if not pa["found"] else ("OK" if major == 4 else "INCOMPATIBLE")
     checks["pyannote_audio"] = dict(pa, status=pa_status, required=">=4.0,<5",
-                                    install=None if pa_status == "OK" else
-                                    "pip install 'diarization-skill[pyannote]'  (pyannote.audio 4.x; Python >= 3.10)")
+                                    install=None if pa_status == "OK" else pyannote_install_hint())
 
     th = _dist("torch", "torch")
     checks["torch"] = dict(th, status="OK" if th["found"] else "MISSING",

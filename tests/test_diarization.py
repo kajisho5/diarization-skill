@@ -427,6 +427,22 @@ class PipelineDirTests(unittest.TestCase):
         self.assertEqual(rc, 3)
         self.assertFalse(doc["ok"])
 
+    def test_doctor_python_floor_matches_pyannote_requires_python(self):
+        # pyannote.audio's Requires-Python: 4.0.x >= 3.10, 4.1+ >= 3.11 (ADR-009).
+        from diarization_skill.doctor import PYANNOTE_PYTHON_NOTE, pyannote_install_hint
+        self.assertIn("3.10", PYANNOTE_PYTHON_NOTE)
+        self.assertIn("3.11", PYANNOTE_PYTHON_NOTE)
+        old = pyannote_install_hint((3, 9, 18))
+        self.assertTrue(old.startswith("Python >= 3.10 first"), old)
+        self.assertIn("3.9", old)
+        for vi in ((3, 10, 14), (3, 11, 0), (3, 13, 1)):
+            hint = pyannote_install_hint(vi)
+            self.assertTrue(hint.startswith("pip install 'diarization-skill[pyannote]'"), (vi, hint))
+            self.assertIn("3.11", hint)
+        d = doctor(os.path.join(tempfile.gettempdir(), "no-such-dir"))
+        if d["checks"]["pyannote_audio"]["status"] != "OK":
+            self.assertEqual(d["checks"]["pyannote_audio"]["install"], pyannote_install_hint())
+
 
 class ContractTests(unittest.TestCase):
     def test_os_registry_keys_and_provides(self):

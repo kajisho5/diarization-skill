@@ -42,7 +42,7 @@ class PyannoteEngine(DiarizationEngine):
             from importlib.metadata import version as _dist_version
         except ImportError as exc:
             raise DiarizationError("ENGINE_UNAVAILABLE", f"pyannote.audio is not importable: {exc}",
-                                   "pip install 'diarization-skill[pyannote]' (pyannote.audio 4.x, Python >= 3.10)")
+                                   "pip install 'diarization-skill[pyannote]' (pyannote.audio 4.x; Python >= 3.10, >= 3.11 for 4.1+)")
         engine_version = _dist_version("pyannote.audio")
         major = _major(engine_version)
         if major is None or not PYANNOTE_RANGE[0] <= major < PYANNOTE_RANGE[1]:
