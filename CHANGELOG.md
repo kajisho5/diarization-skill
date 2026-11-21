@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0 - 2026-11-21
+
+- feat!: 1.0.0 - assign is STABLE; breaking changes to it only in a major release (ADR-008) (#25) (c682455)
+
 ## 0.3.7 - 2026-11-21
 
 - fix(tests): a transcription-skill checkout named by TRANSCRIPTION_SKILL_DIR is required by the conformance test (#24) (7c7240d)
