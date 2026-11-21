@@ -447,6 +447,25 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(c["engines"]["model"], MODEL_ID)
         self.assertIn("CC-BY-4.0", c["engines"]["license"])
 
+    def test_provides_lifecycle_is_the_1_0_promise(self):
+        """docs/decisions.md ADR-008: ASSIGN is STABLE; DIARIZE, ENROLL and NAME (a third-party model, or thresholds on its
+        embeddings) stay EXPERIMENTAL. Promoting an entry is metadata only (si's `lifecycle-promoted` rule), so the ids,
+        tool ids and their order are unchanged."""
+        from diarization_skill.contract import OPERATIONS, STABLE_OPERATIONS
+        c = contract()
+        self.assertEqual(c["provides"], [
+            {"id": "speech.diarize", "lifecycle": "EXPERIMENTAL", "tool_id": "diarization/diarize"},
+            {"id": "speech.assign_speakers", "lifecycle": "STABLE", "tool_id": "diarization/assign"},
+            {"id": "speech.enroll_voice", "lifecycle": "EXPERIMENTAL", "tool_id": "diarization/enroll"},
+            {"id": "speech.propose_speaker_names", "lifecycle": "EXPERIMENTAL", "tool_id": "diarization/name"},
+        ])
+        self.assertLessEqual(STABLE_OPERATIONS, {op for _, op in OPERATIONS})
+        # every STABLE tool is deterministic and runs no model: nothing STABLE depends on the engine
+        stable_tools = [t for t in TOOLS if t["tool_id"] in {f"diarization/{op}" for op in STABLE_OPERATIONS}]
+        self.assertEqual(len(stable_tools), len(STABLE_OPERATIONS))
+        self.assertTrue(all(t["deterministic"] for t in stable_tools))
+        self.assertTrue(all("--pipeline-dir" not in " ".join(t["argv"]) for t in stable_tools))
+
     def test_version_comes_from_pyproject(self):
         import re
         want = re.search(r'^version = "([^"]+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8"), re.M).group(1)

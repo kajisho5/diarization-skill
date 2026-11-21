@@ -63,6 +63,22 @@ The weights are free (CC-BY-4.0) but gated: Hugging Face asks you to accept the 
 
 Every command prints one JSON document with `--json`. Exit codes: 0 ok, 2 invalid input or arguments, 3 engine, pipeline or ffmpeg missing, 4 the engine failed or timed out. Outputs never overwrite an existing file without `--overwrite`, and `-o` equal to an input is refused.
 
+## Compatibility promise (1.0)
+
+From 1.0.0, a breaking change to anything below ships only in a major release (2.0.0), per Velisa ADR-031 ([ADR-008](docs/decisions.md)):
+
+- **`STABLE`:** `speech.assign_speakers` (`assign`), with these parts:
+  - the arguments `<transcript.json> <turns.json> -o out.json`, `--replace`, `--allow-source-mismatch` and `--overwrite`;
+  - the rule in [docs/speaker_id_rule.md](docs/speaker_id_rule.md) and the conformance fixtures at `fixture_version` 1;
+  - the input documents (`transcription-skill/transcript/0.1`, and the `diarization-skill/turns@1` fields ASSIGN reads), `speaker_id` per segment and word, and the keys of the `speaker_assignment` block;
+  - its error codes and the exit codes, and the top-level contract fields.
+- **Experimental fields of `assign`**, which may change in a minor release with a CHANGELOG line:
+  - the values of `speaker_assignment.engine` and `speaker_assignment.parameters`, copied from the turns document as DIARIZE wrote them;
+  - the text of `speaker_assignment.rule` and of the `warnings` lines (the method id is the stable name of the rule);
+  - the optional turns blocks ASSIGN does not read, `chunking` and `speaker_embeddings`.
+- **Still experimental:** `speech.diarize` (`diarize`, which runs pyannote and its gated model, DER not measured yet, with `--embeddings`, `--chunk-seconds`, `--link-threshold` and `--work-dir`), `speech.enroll_voice` (`enroll`) and `speech.propose_speaker_names` (`name`, thresholds not calibrated yet). `check` and `score` have no capability entry and are not covered.
+- **Deprecation:** a `STABLE` entry or option is marked `DEPRECATED` in a minor release, with its replacement named. It keeps working for at least one more minor release and 30 days, and is removed only in a major release.
+
 ## How it works
 
 - **Audio.** ffprobe checks the input, then ffmpeg extracts one explicitly mapped audio stream to mono 16 kHz PCM, the same fixed recipe as transcription-skill (its ADR-004), so both skills see the same samples on the same timeline. The input file is fingerprinted (sha256); ASSIGN refuses turns whose fingerprint differs from the transcript's unless you say both share a timeline (`--allow-source-mismatch`).
