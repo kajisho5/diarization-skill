@@ -290,3 +290,24 @@ The 1.0 pull request carries the `major` label. release-drafter then resolves 0.
 - A caller of DIARIZE, ENROLL or NAME, the agent included, reads the CHANGELOG on each minor release. The agent's re-pin still flags a breaking change in them for review.
 - video-production-agent's re-pin sees a 0.x → 1.0.0 release with a `none` diff and widens its gate to `1.0.`.
 - `tests/test_diarization.py::ContractTests::test_provides_lifecycle_is_the_1_0_promise` fixes the lifecycles and checks that the `STABLE` tool is deterministic and takes no pipeline.
+
+## ADR-009 The engine's Python floor follows pyannote.audio's own `Requires-Python`
+
+Checked 2026-11-21 against the `requires_python` of each pyannote.audio release on PyPI.
+
+### Context
+
+- pyannote.audio 4.0.0 to 4.0.7 declare `Requires-Python >=3.10`. 4.1.0 (2026-11-17) and 4.1.1 (2026-11-19) declare `>=3.11`.
+- The `[pyannote]` extra is `pyannote.audio>=4.0,<5`. pip picks the newest 4.x that fits the interpreter. A `pip download --python-version` resolve gives 4.0.7 on 3.10 and 4.1.1 on 3.11; on 3.9 it finds no 4.x release and fails.
+- The comment in `pyproject.toml`, the README, the engine's error and `doctor` said only "Python >= 3.10", which no longer describes 4.1. On Python 3.9 `doctor` offered `pip install 'diarization-skill[pyannote]'` as the step, which cannot resolve there.
+
+### Decision
+
+- The extra stays `pyannote.audio>=4.0,<5` with no environment marker. 3.10 keeps working on 4.0.x. A marker would turn the failing install on 3.9 into a silent install without the engine.
+- The comment, the README, the engine's `ENGINE_UNAVAILABLE` hint and `doctor` say: 4.x needs Python >= 3.10; 4.1 and later need >= 3.11.
+- On Python < 3.10, `doctor`'s `pyannote_audio` install step is "Python >= 3.10 first, then pip install ...". `doctor`'s readiness logic does not change.
+
+### Consequences
+
+- No contract change, no change to DIARIZE's behaviour. The results' `engine.version` records which pyannote.audio ran, so a 3.10 run (4.0.x) and a 3.11 run (4.1.x) can be told apart.
+- `tests/test_diarization.py::PipelineDirTests::test_doctor_python_floor_matches_pyannote_requires_python` fixes the hint per Python version.
