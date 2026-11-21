@@ -47,7 +47,7 @@ transcription-skill transcript -> `diarization assign` -> the same transcript wi
 - [x] **10. 1.0.0: the compatibility promise** — `assign` is `STABLE`; `diarize`, `enroll` and `name` (a third-party model, or thresholds on its embeddings) stay `EXPERIMENTAL`, as do the parts of `assign`'s output copied from the turns document (Velisa ADR-031 / D46) (ADR-008)
   - Done when: the contract marks ASSIGN `STABLE` with a `none` contract diff, the README and an ADR state the promise, and 1.0.0 is released and re-pinned by the agent
 - [x] **11. The engine's Python floor matches pyannote.audio 4.1** — pyannote.audio 4.1+ needs Python >= 3.11 (4.0.x: >= 3.10) (ADR-009)
-  - Done when: the `pyproject.toml` comment, the README, the engine's hint and `doctor` say so; `doctor` on Python < 3.10 names a newer Python as the first step, with a test; released as a patch (PR_LINK)
+  - Done when: the `pyproject.toml` comment, the README, the engine's hint and `doctor` say so; `doctor` on Python < 3.10 names a newer Python as the first step, with a test; released as a patch ([#26](https://github.com/kajisho5/diarization-skill/pull/26))
 
 ---
 Engine for every media operation: [ffmpeg-skill](https://github.com/kajisho5/ffmpeg-skill) (3.x, 42 tools, contract_version 2.0; treated as complete, proposals go to Velisa's ROADMAP). Orchestrator: [video-production-agent](https://github.com/kajisho5/video-production-agent).
