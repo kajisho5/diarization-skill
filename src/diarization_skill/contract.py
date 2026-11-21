@@ -45,6 +45,16 @@ TOOLS = [
      "argv": ["score", "<turns.json>", "<reference.json>", "--json"]},
 ]
 
+# The 1.0 compatibility promise (docs/decisions.md ADR-008, Velisa ADR-031): a STABLE entry, and the tool it maps to,
+# changes in a breaking way only in a major release. ASSIGN is deterministic, local and standard-library only, unchanged
+# since 0.1.0, and its rule is a spec with conformance fixtures (ADR-004) that transcription-skill and the agent rely on.
+# DIARIZE and ENROLL run a third-party model whose output and real-world accuracy are not measured yet (roadmap step 6);
+# NAME scores pyannote embeddings against thresholds not calibrated yet. They stay EXPERIMENTAL. The parts of ASSIGN's
+# output that ADR-008 lists as experimental (values copied from the turns document) have no lifecycle field of their own.
+OPERATIONS = (("speech.diarize", "diarize"), ("speech.assign_speakers", "assign"), ("speech.enroll_voice", "enroll"),
+              ("speech.propose_speaker_names", "name"))
+STABLE_OPERATIONS = frozenset({"assign"})
+
 ERRORS = {
     "INPUT_NOT_FOUND": {"exit_code": 2, "retryable": False},
     "INVALID_ARGUMENT": {"exit_code": 2, "retryable": False},
@@ -76,10 +86,8 @@ def contract() -> Dict[str, Any]:
         "skill": {"id": SKILL_ID, "package": "diarization-skill", "version": __version__},
         "version": __version__,
         "contract_version": CONTRACT_VERSION,
-        "provides": [{"id": "speech.diarize", "lifecycle": "EXPERIMENTAL", "tool_id": "diarization/diarize"},
-                     {"id": "speech.assign_speakers", "lifecycle": "EXPERIMENTAL", "tool_id": "diarization/assign"},
-                     {"id": "speech.enroll_voice", "lifecycle": "EXPERIMENTAL", "tool_id": "diarization/enroll"},
-                     {"id": "speech.propose_speaker_names", "lifecycle": "EXPERIMENTAL", "tool_id": "diarization/name"}],
+        "provides": [{"id": cap, "lifecycle": "STABLE" if op in STABLE_OPERATIONS else "EXPERIMENTAL", "tool_id": f"diarization/{op}"}
+                     for cap, op in OPERATIONS],
         # Skill dependencies only (other Skills this one invokes), each with skill_id and version_range: the OS contract
         # shape (Velisa registry/capability_contract.schema.json, ADR-018). This skill invokes none. pyannote.audio, the
         # pipeline weights and ffmpeg are not Skills: `doctor` reports each with its version and install steps, and `engines`

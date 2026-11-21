@@ -205,3 +205,88 @@ Today's release commits wrote CHANGELOG.md headings as `## vX.Y.Z - date`. Every
 
 - A version bumped by hand in a pull request is released whatever its labels.
 - A release that fails the tests is not made; a later push retries.
+
+## ADR-008 The 1.0 compatibility promise: ASSIGN is `STABLE`; DIARIZE, ENROLL and NAME stay `EXPERIMENTAL`
+
+2026-11-21. Status: Accepted (Velisa ADR-031 / D46; the owner approved the 1.0 transition).
+
+### Context
+
+Velisa ADR-031 sets what 1.0 means for a Skill. From 1.0.0, a change that `si contract-diff` calls breaking, to a part of the contract the promise covers, ships only in a major release. The promise covers:
+
+- the `provides[]` entries marked `STABLE`, and the tools they map to;
+- their request, response and error shapes;
+- the top-level contract fields that are not tied to a capability.
+
+An `EXPERIMENTAL` entry may still change in a minor release, with a CHANGELOG line.
+
+ADR-031's readiness measurements for this repository, checked again on 2026-11-21:
+
+- **Breaking changes:** none in the tag diffs (v0.3.2 to v0.3.7) or in the `contract:*` labels of the merged pull requests.
+- **Open roadmap steps:** only step 6, measuring DER on consented Japanese conference recordings. It is a field test. Whatever it finds can move DIARIZE's and NAME's defaults (`--link-threshold`, `--min-similarity`, `--min-margin`), and both stay `EXPERIMENTAL` below.
+- **Known defects:** issue #18 listed two CodeRabbit follow-ups. Both were fixed first, each in its own patch release: rule 2 of `docs/speaker_id_rule.md` now says what the code does (#23), and the conformance test fails instead of skipping when `TRANSCRIPTION_SKILL_DIR` names a wrong checkout (#24). The third item is a nitpick: one more conformance case. Adding a case bumps `fixture_version`, which transcription-skill pins, so it is left for a later minor release.
+- **Releases:** ADR-031 counted four (v0.3.2 to v0.3.5; criterion 4 asks for five). The two patch releases above make six, and 1.0.0 is the seventh. ASSIGN's code is older than the tags: `assign.py` has not changed since 0.1.0 (2026-10-30).
+- **Agent:** video-production-agent pins this contract (`integration/siblings.lock.json`) and gates it by `SUPPORTED_SKILL_VERSIONS`. It runs DIARIZE as the analysis kind `speaker_turns` (its ADR-086). It merges the turns into its transcripts by this repository's ASSIGN rule (its ADR-096, through transcription-skill's copy of the rule), and its resolver reports `diarization:ASSIGN` from `doctor`. It does not call ENROLL or NAME.
+
+The contract has a `lifecycle` field only on `provides[]` entries. This repository has four: `speech.diarize`, `speech.assign_speakers`, `speech.enroll_voice` and `speech.propose_speaker_names`. `check` and `score` have no entry. A parameter or an output field has no lifecycle field either, so ADR-031 records their status in text: the README, the CHANGELOG and this ADR.
+
+### Decision
+
+#### 1. `STABLE` entry
+
+**`speech.assign_speakers`** (`diarization/assign`). It covers:
+
+- the arguments `<transcript.json> <turns.json> -o <out.json>`, `--replace`, `--allow-source-mismatch`, `--overwrite` and `--json`;
+- the rule in [docs/speaker_id_rule.md](speaker_id_rule.md) (method `max_overlap_with_exclusive_turns`) and the conformance fixtures in `conformance/speaker_id/` at `fixture_version` 1. A change to an expected value is a breaking change;
+- the input documents: `transcription-skill/transcript/0.1` and the required fields of `diarization-skill/turns@1` that ASSIGN reads (`source.fingerprint`, `turns`, `overlap`, `speakers`, `engine`, `parameters`, `created_at`);
+- the output: the same transcript with `speaker_id` per segment and word, and the keys of the `speaker_assignment` block (`skill`, `skill_version`, `tool`, `created_at`, `method`, `rule`, `speaker_ids`, `turns_schema`, `turns_created_at`, `source_fingerprint`, `source_match`, `engine`, `parameters`, `speakers`, `segments_per_speaker`, `counts`, `overlap_available`, `overlap_segment_ids`);
+- the error codes ASSIGN raises (`INPUT_NOT_FOUND`, `INVALID_TRANSCRIPT`, `INVALID_TURNS`, `SOURCE_MISMATCH`, `SPEAKERS_ALREADY_SET`, `OUTPUT_IS_INPUT`, `OUTPUT_EXISTS`, `INVALID_ARGUMENT`) and the exit codes.
+
+Reasons:
+
+- It is deterministic, runs locally and needs only the Python standard library. No model, weights or ffmpeg are involved.
+- It has shipped since 0.1.0, and `assign.py` is unchanged since then.
+- This repository owns the rule (Velisa ownership decisions, 2026-11-12). It is written down as a spec with fixtures that transcription-skill runs too, so it already cannot change without both sides noticing.
+- The agent's transcripts carry `speaker_id` by this rule.
+
+A breaking change to anything above, or to the error codes and the top-level contract fields, ships only in a major release (2.0.0).
+
+#### 2. Experimental parts of the `STABLE` tool
+
+These parts of ASSIGN's output stay experimental. Each may still change in a minor release, with a CHANGELOG line:
+
+- **The values copied from the turns document:** `speaker_assignment.engine` and `speaker_assignment.parameters`. ASSIGN copies them as DIARIZE wrote them, so their contents follow DIARIZE and its engine (section 3). The keys of `speaker_assignment` themselves are stable.
+- **The text of `speaker_assignment.rule` and of the `warnings` lines.** They are for people. The method id `max_overlap_with_exclusive_turns` is the machine-readable name of the rule.
+- **The optional `turns@1` blocks that ASSIGN does not read:** `chunking` (ADR-003) and `speaker_embeddings` (ADR-002). DIARIZE writes them with `--chunk-seconds` and `--embeddings`.
+
+A request with none of these parts in mind gets the `STABLE` behaviour of section 1. They are left out of the promise because they belong to DIARIZE, or they are prose, not because they are known to be wrong.
+
+#### 3. `EXPERIMENTAL` entries
+
+- **`speech.diarize`** (`diarization/diarize`). It runs pyannote.audio and the gated `speaker-diarization-community-1` weights (ADR-001), third-party software and a third-party model this repository does not control. Its turns change with the engine and the model revision. The real engine's DER has not been measured yet (roadmap steps 3 and 6), and no 2-8 h recording has been run through it (step 8). Its newer options stay experimental with it: `--embeddings` (ADR-002), `--chunk-seconds`, `--link-threshold` and `--work-dir` (ADR-003), whose threshold is not calibrated. The agent calls DIARIZE, so a breaking change to it is still named in the pull request and the CHANGELOG, and the agent's re-pin sends it to review (agent ADR-117). The `turns@1` fields that ASSIGN reads are held by section 1.
+- **`speech.enroll_voice`** (`diarization/enroll`). It runs the same model to make a voiceprint, so the voiceprint's embedding changes with the model. It was added in 0.2.0 (2026-11-06), and the consent record and the refusal of a sample with other voices have not been reviewed in the field.
+- **`speech.propose_speaker_names`** (`diarization/name`). It is deterministic, but it compares embeddings from the model. Its thresholds (`--min-similarity 0.6`, `--min-margin 0.1`) were set on a synthetic fixture and are not calibrated on pyannote's embeddings (roadmap step 7). Calibrating them can change the defaults and the proposals. The agent does not call it.
+
+`check` and `score` have no `provides[]` entry and are not covered by the promise. `check` of a turns document is the same validation ASSIGN runs, so a turns document ASSIGN accepts passes `check`.
+
+#### 4. How the promise is kept
+
+- Promoting an entry (or a part of section 2) to `STABLE` is metadata only. si's `lifecycle-promoted` rule classifies it as `none`, so it can ship in any release. DIARIZE is the next candidate, once roadmap step 6 has measured it.
+- **Deprecation** of the `STABLE` entry or one of its options (ADR-031 section 3):
+  1. mark it `DEPRECATED` in a minor release, naming its replacement in the README and the CHANGELOG;
+  2. keep it working for at least one more minor release and 30 days;
+  3. remove it only in the next major release.
+- **Breaking-change review.** `major-label-check.yml` fails a `contract:breaking` pull request on 1.x without the `major` label. For a break only in an `EXPERIMENTAL` entry, ADR-031 section 5 lets the reviewer remove `contract:breaking` by hand. si reports an option of a `STABLE` tool as part of that tool. So the reviewer can remove the label only when both of these hold:
+  - every breaking item in the contract-diff comment is in `speech.diarize`, `speech.enroll_voice`, `speech.propose_speaker_names` or a part listed in section 2;
+  - the pull request and the CHANGELOG entry name it.
+
+#### 5. Release
+
+The 1.0 pull request carries the `major` label. release-drafter then resolves 0.3.x → 1.0.0, and `release_gate.py` treats `major` as release-level. No workflow changes. The contract diff of the pull request is `none` (one `lifecycle-promoted` item). `contract_version` stays `1.0`: it is a separate axis from the release version.
+
+### Consequences
+
+- A caller that uses ASSIGN can float across 1.x minors.
+- A caller of DIARIZE, ENROLL or NAME, the agent included, reads the CHANGELOG on each minor release. The agent's re-pin still flags a breaking change in them for review.
+- video-production-agent's re-pin sees a 0.x → 1.0.0 release with a `none` diff and widens its gate to `1.0.`.
+- `tests/test_diarization.py::ContractTests::test_provides_lifecycle_is_the_1_0_promise` fixes the lifecycles and checks that the `STABLE` tool is deterministic and takes no pipeline.
