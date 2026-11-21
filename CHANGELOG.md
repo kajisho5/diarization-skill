@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.6 - 2026-11-21
+
+- fix(docs): speaker-id rule 2 says what pick() does (scores at or below 1e-9 s are dropped first) (#23) (e90534f)
+- ci: a contract:breaking pull request on 1.x needs the major label (Velisa ADR-031 section 5) (#22) (e4016f7)
+- ci: release gate leaves contract:* labels out of the count (#21) (317b37f)
+- ci: Velisa's reusable changelog-check/release-guard; dependencies PRs release a patch (D36, D37) (#20) (771beef)
+
 ## 0.3.5 - 2026-11-19
 
 - fix(release): CHANGELOG headings in this file's form; test the release commit before pushing; no release for chore/ci/docs-only changes (#19) (e360291)
