@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.7 - 2026-11-21
+
+- fix(tests): a transcription-skill checkout named by TRANSCRIPTION_SKILL_DIR is required by the conformance test (#24) (7c7240d)
+
 ## 0.3.6 - 2026-11-21
 
 - fix(docs): speaker-id rule 2 says what pick() does (scores at or below 1e-9 s are dropped first) (#23) (e90534f)
