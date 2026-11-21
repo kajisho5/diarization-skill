@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 - 2026-11-21
+
+- fix(doctor): Python floor follows pyannote.audio's Requires-Python (4.1+ needs 3.11) (#26) (f918580)
+
 ## 1.0.0 - 2026-11-21
 
 - feat!: 1.0.0 - assign is STABLE; breaking changes to it only in a major release (ADR-008) (#25) (c682455)
