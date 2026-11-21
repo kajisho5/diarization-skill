@@ -10,7 +10,7 @@ This repository owns the rule that turns speaker turns into `speaker_id` values 
 ## Rule
 
 1. **Overlap.** The overlap of a unit `[s, e]` with a turn `[ts, te]` is `min(e, te) - max(s, ts)` when it is positive, else zero. A unit that only touches a turn edge (`e == ts` or `s == te`) has zero overlap with it. For each speaker, the overlaps with all of that speaker's turns are summed.
-2. **Pick.** The unit gets the speaker with the strictly largest summed overlap. It stays `null` when every overlap is zero, or when two speakers share the largest value. Two values are equal when they differ by at most `1e-9` s.
+2. **Pick.** A summed overlap of at most `1e-9` s counts as zero, and that speaker is dropped. The unit gets the speaker with the strictly largest of the remaining values. It stays `null` when no speaker remains, or when the two largest values differ by at most `1e-9` s (a tie).
 3. **Words.** In a segment with a non-empty `words` list, every word is a unit and gets its own `speaker_id` (rules 1-2).
 4. **Segment with words.** The segment's speaker is picked (rule 2) from votes: each word that got a speaker votes with its duration `end - start` for that speaker. Words left `null` do not vote. A tie, or no assigned word, leaves the segment `null`.
 5. **Segment without words.** A segment with `words: null` (or an empty list) is itself the unit (rules 1-2).
