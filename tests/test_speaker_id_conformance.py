@@ -41,6 +41,16 @@ def _sibling(env: str, name: str):
 
 
 TRANSCRIPTION_DIR = _sibling("TRANSCRIPTION_SKILL_DIR", "transcription-skill")
+# A checkout named by TRANSCRIPTION_SKILL_DIR (as the integration job does) is required, not optional: when it is
+# missing or has no speakers.py the transcription cases fail instead of skipping. Only ../transcription-skill, found
+# by chance, is optional.
+TRANSCRIPTION_DIR_EXPLICIT = os.environ.get("TRANSCRIPTION_SKILL_DIR") or None
+if TRANSCRIPTION_DIR_EXPLICIT:
+    TRANSCRIPTION_DIR = Path(TRANSCRIPTION_DIR_EXPLICIT)
+
+
+def _transcription_speakers_present() -> bool:
+    return bool(TRANSCRIPTION_DIR) and (TRANSCRIPTION_DIR / "src" / "transcription_skill" / "speakers.py").is_file()
 
 
 def load_manifest():
@@ -101,10 +111,14 @@ class AssignConformanceTests(unittest.TestCase):
                 self.assertEqual(out["speaker_assignment"]["method"], METHOD)
 
 
-@unittest.skipUnless(TRANSCRIPTION_DIR and (TRANSCRIPTION_DIR / "src" / "transcription_skill" / "speakers.py").is_file(),
+@unittest.skipUnless(TRANSCRIPTION_DIR_EXPLICIT or _transcription_speakers_present(),
                      "needs a transcription-skill checkout (TRANSCRIPTION_SKILL_DIR or ../transcription-skill)")
 class TranscriptionMergeConformanceTests(unittest.TestCase):
     """The copy of the rule in transcription-skill (`transcription speakers`) gives the same answers."""
+
+    def setUp(self):
+        if not _transcription_speakers_present():
+            self.fail(f"TRANSCRIPTION_SKILL_DIR is set but {TRANSCRIPTION_DIR} has no src/transcription_skill/speakers.py")
 
     def test_transcription_speakers_passes_every_case(self):
         env = dict(os.environ, PYTHONPATH=str(TRANSCRIPTION_DIR / "src"), PYTHONUTF8="1")
